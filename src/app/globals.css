@@ -126,6 +126,7 @@ button { font-family: inherit; }
   letter-spacing: 0.02em;
   text-transform: lowercase;
   cursor: default;
+  -webkit-user-select: none;
   user-select: none;
   box-shadow:
     0 0 0 0 rgba(var(--accent-rgb), 0.0),

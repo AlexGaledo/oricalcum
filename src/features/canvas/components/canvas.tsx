@@ -84,27 +84,23 @@ export function Canvas() {
     return () => window.removeEventListener("mousemove", onMove);
   }, [screenToCanvas, setMouse]);
 
-  // Wheel: zoom (ctrl/meta) or pan
+  // Wheel: zoom in/out toward mouse pointer
   const onWheel = useCallback(
     (e: WheelEvent) => {
       e.preventDefault();
-      if (e.ctrlKey || e.metaKey) {
-        const r = canvasRef.current!.getBoundingClientRect();
-        const mx = e.clientX - r.left;
-        const my = e.clientY - r.top;
-        setCamera((c) => {
-          const factor = Math.exp(-e.deltaY * 0.01);
-          const newZoom = clamp(c.zoom * factor, APP.zoom.min, APP.zoom.max);
-          const real = newZoom / c.zoom;
-          return {
-            x: mx - real * (mx - c.x),
-            y: my - real * (my - c.y),
-            zoom: newZoom,
-          };
-        });
-      } else {
-        setCamera((c) => ({ ...c, x: c.x - e.deltaX, y: c.y - e.deltaY }));
-      }
+      const r = canvasRef.current!.getBoundingClientRect();
+      const mx = e.clientX - r.left;
+      const my = e.clientY - r.top;
+      setCamera((c) => {
+        const factor = Math.exp(-e.deltaY * 0.01);
+        const newZoom = clamp(c.zoom * factor, APP.zoom.min, APP.zoom.max);
+        const real = newZoom / c.zoom;
+        return {
+          x: mx - real * (mx - c.x),
+          y: my - real * (my - c.y),
+          zoom: newZoom,
+        };
+      });
     },
     [setCamera],
   );

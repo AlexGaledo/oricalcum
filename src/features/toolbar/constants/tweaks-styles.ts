@@ -7,7 +7,7 @@ export const TWEAKS_STYLE = `
     box-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 12px 40px rgba(0,0,0,.6);
     font:11.5px/1.4 ui-sans-serif,system-ui,-apple-system,sans-serif;overflow:hidden}
   .twk-hd{display:flex;align-items:center;justify-content:space-between;
-    padding:10px 8px 10px 14px;cursor:move;user-select:none}
+    padding:10px 8px 10px 14px;cursor:move;-webkit-user-select:none;user-select:none}
   .twk-hd b{font-size:12px;font-weight:600;letter-spacing:.01em}
   .twk-x{appearance:none;border:0;background:transparent;color:rgba(231,233,236,.55);
     width:22px;height:22px;border-radius:6px;cursor:pointer;font-size:13px;line-height:1}
@@ -43,7 +43,7 @@ export const TWEAKS_STYLE = `
   .twk-slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;
     background:#fff;border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.5);cursor:pointer}
   .twk-seg{position:relative;display:flex;padding:2px;border-radius:8px;
-    background:rgba(255,255,255,.06);user-select:none}
+    background:rgba(255,255,255,.06);-webkit-user-select:none;user-select:none}
   .twk-seg-thumb{position:absolute;top:2px;bottom:2px;border-radius:6px;
     background:rgba(255,255,255,.14);box-shadow:0 1px 2px rgba(0,0,0,.3);
     transition:left .15s cubic-bezier(.3,.7,.4,1),width .15s}
