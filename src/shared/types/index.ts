@@ -22,6 +22,8 @@ export interface OriNode {
   y: number;
   w: number;
   h: number;
+  baseW: number;
+  baseH: number;
   shape: ShapeId;
   title: string;
   body: string;

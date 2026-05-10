@@ -541,6 +541,33 @@ button { font-family: inherit; }
   margin-right: 2px;
 }
 
+/* ── Doc overlay (expanded) ──────────────────────────────────── */
+.doc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+.doc-overlay-content {
+  width: min(680px, 90vw);
+  height: min(520px, 80vh);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+  animation: doc-expand-in 0.18s cubic-bezier(0.3, 0.7, 0.4, 1) both;
+}
+@keyframes doc-expand-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 /* ── Doc panel ────────────────────────────────────────────────── */
 .docpanel {
   position: fixed;
