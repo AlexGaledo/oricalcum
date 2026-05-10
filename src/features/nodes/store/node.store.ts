@@ -3,7 +3,10 @@
 import { create } from "zustand";
 import { SHAPE_BY_ID, SHAPE_TITLES } from "@/shared/constants/shapes";
 import { uid } from "@/shared/lib/uid";
+import { measureTextWidth } from "@/shared/lib/measure-text";
 import type { OriNode, ShapeId } from "@/shared/types";
+
+const NODE_PADDING = 28;
 
 interface NodeStore {
   nodes: OriNode[];
@@ -34,6 +37,8 @@ export const useNodeStore = create<NodeStore>((set) => ({
       y: Math.round(cy - h / 2),
       w,
       h,
+      baseW: w,
+      baseH: h,
       shape,
       title: SHAPE_TITLES[shape] ?? "node",
       body: "",
@@ -54,9 +59,15 @@ export const useNodeStore = create<NodeStore>((set) => ({
     })),
   updateNode: (id, patch) =>
     set((s) => ({
-      nodes: s.nodes.map((n) =>
-        n.id === id ? { ...n, ...patch, updatedAt: Date.now() } : n,
-      ),
+      nodes: s.nodes.map((n) => {
+        if (n.id !== id) return n;
+        const merged = { ...n, ...patch, updatedAt: Date.now() };
+        if ("title" in patch) {
+          const textWidth = measureTextWidth(patch.title ?? "");
+          merged.w = Math.max(n.baseW, Math.round(textWidth + NODE_PADDING));
+        }
+        return merged;
+      }),
     })),
   setSelected: (id) => set({ selectedId: id }),
   setHoverConnectTarget: (id) => set({ hoverConnectTargetId: id }),

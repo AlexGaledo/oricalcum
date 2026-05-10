@@ -13,6 +13,7 @@ interface CanvasStore {
   themeOpen: boolean;
   tweaksOpen: boolean;
   openDocId: string | null;
+  docExpanded: boolean;
   setCamera: (cam: Camera | ((c: Camera) => Camera)) => void;
   setTool: (t: ToolMode | ((t: ToolMode) => ToolMode)) => void;
   setDrag: (d: DragGesture | ((d: DragGesture) => DragGesture)) => void;
@@ -22,6 +23,7 @@ interface CanvasStore {
   setThemeOpen: (b: boolean | ((b: boolean) => boolean)) => void;
   setTweaksOpen: (b: boolean | ((b: boolean) => boolean)) => void;
   setOpenDocId: (id: string | null) => void;
+  setDocExpanded: (b: boolean) => void;
 }
 
 export const useCanvasStore = create<CanvasStore>((set) => ({
@@ -37,6 +39,7 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
   themeOpen: false,
   tweaksOpen: false,
   openDocId: null,
+  docExpanded: false,
   setCamera: (cam) =>
     set((s) => ({ camera: typeof cam === "function" ? cam(s.camera) : cam })),
   setTool: (t) =>
@@ -53,5 +56,6 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     set((s) => ({ themeOpen: typeof b === "function" ? b(s.themeOpen) : b })),
   setTweaksOpen: (b) =>
     set((s) => ({ tweaksOpen: typeof b === "function" ? b(s.tweaksOpen) : b })),
-  setOpenDocId: (id) => set({ openDocId: id }),
+  setOpenDocId: (id) => set({ openDocId: id, docExpanded: false }),
+  setDocExpanded: (b) => set({ docExpanded: b }),
 }));

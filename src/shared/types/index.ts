@@ -14,12 +14,16 @@ export type BackgroundMode = "plain" | "grid" | "paper" | "collage";
 
 export type FontMode = "mono" | "inter";
 
+export type PortSide = "top" | "right" | "bottom" | "left";
+
 export interface OriNode {
   id: string;
   x: number;
   y: number;
   w: number;
   h: number;
+  baseW: number;
+  baseH: number;
   shape: ShapeId;
   title: string;
   body: string;
@@ -31,6 +35,8 @@ export interface OriEdge {
   id: string;
   from: string;
   to: string;
+  fromPort: PortSide;
+  toPort: PortSide;
 }
 
 export interface Camera {
@@ -61,5 +67,5 @@ export type DragGesture =
   | { kind: "pan"; startX: number; startY: number; camX: number; camY: number }
   | { kind: "node"; id: string; startX: number; startY: number; origX: number; origY: number }
   | { kind: "spawn"; shape: ShapeId; x: number; y: number }
-  | { kind: "connect"; from: string; x: number; y: number }
+  | { kind: "connect"; from: string; fromPort: PortSide; x: number; y: number }
   | null;

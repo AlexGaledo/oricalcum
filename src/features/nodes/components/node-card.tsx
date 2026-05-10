@@ -3,7 +3,7 @@
 import type { MouseEvent } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/shared/lib/cn";
-import type { OriNode } from "@/shared/types";
+import type { OriNode, PortSide } from "@/shared/types";
 import { NodeShapeBg } from "./node-shapes";
 
 interface NodeCardProps {
@@ -13,17 +13,14 @@ interface NodeCardProps {
   isDragging: boolean;
   onPointerDown: (e: MouseEvent) => void;
   onDoubleClick: (e: MouseEvent) => void;
-  onPortDown: (e: MouseEvent, side: "l" | "r") => void;
+  onPortDown: (e: MouseEvent, side: PortSide) => void;
 }
 
+const PORT_SIDES: PortSide[] = ["top", "right", "bottom", "left"];
+
 export function NodeCard({
-  node,
-  isSelected,
-  isConnectSource,
-  isDragging,
-  onPointerDown,
-  onDoubleClick,
-  onPortDown,
+  node, isSelected, isConnectSource, isDragging,
+  onPointerDown, onDoubleClick, onPortDown,
 }: NodeCardProps) {
   const hasShapeBg =
     node.shape === "hexagon" || node.shape === "diamond" || node.shape === "cloud";
@@ -42,10 +39,7 @@ export function NodeCard({
       data-shape={node.shape}
       data-id={node.id}
       style={{
-        left: node.x,
-        top: node.y,
-        width: node.w,
-        height: node.h,
+        left: node.x, top: node.y, width: node.w, height: node.h,
         borderColor: hasShapeBg ? "transparent" : undefined,
         background: hasShapeBg ? "transparent" : undefined,
         boxShadow: hasShapeBg ? "none" : undefined,
@@ -55,8 +49,14 @@ export function NodeCard({
     >
       <NodeShapeBg shape={node.shape} width={node.w} height={node.h} />
       <span className="node-inner">{node.title || "untitled"}</span>
-      <span className="node-port l" onMouseDown={(e) => onPortDown(e, "l")} />
-      <span className="node-port r" onMouseDown={(e) => onPortDown(e, "r")} />
+      {PORT_SIDES.map((side) => (
+        <span
+          key={side}
+          className={`node-port ${side}`}
+          data-port={side}
+          onMouseDown={(e) => onPortDown(e, side)}
+        />
+      ))}
     </motion.div>
   );
 }

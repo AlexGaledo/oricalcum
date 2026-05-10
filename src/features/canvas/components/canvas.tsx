@@ -15,12 +15,14 @@ import { useThemeStore } from "@/features/themes/store/theme.store";
 import { NodeCard } from "@/features/nodes/components/node-card";
 import { EdgeBezier } from "@/features/edges/components/edge-bezier";
 import { freePath } from "@/features/edges/utils/edge-path";
+import { getPortPosition, getNearestPort } from "@/features/nodes/utils/port-positions";
 import { EmptyState } from "@/features/toolbar/components/empty-state";
 import { useKeyboardShortcuts } from "../hooks/use-keyboard";
 import { useViewportTracking } from "../hooks/use-viewport";
 import { clamp } from "@/shared/lib/clamp";
 import { cn } from "@/shared/lib/cn";
 import { APP } from "@/config/app.config";
+import type { PortSide } from "@/shared/types";
 
 export function Canvas() {
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -139,11 +141,15 @@ export function Canvas() {
     const node = nodes.find((n) => n.id === nodeId);
     if (!node) return;
     if (tool === "connect") {
+      const cp = screenToCanvas(e.clientX, e.clientY);
+      const side = getNearestPort(node, cp.x, cp.y);
+      const pos = getPortPosition(node, side);
       setDrag({
         kind: "connect",
         from: nodeId,
-        x: node.x + node.w,
-        y: node.y + node.h / 2,
+        fromPort: side,
+        x: pos.x,
+        y: pos.y,
       });
       return;
     }
@@ -164,17 +170,19 @@ export function Canvas() {
     setSelected(nodeId);
   };
 
-  const onPortDown = (e: ReactMouseEvent, nodeId: string, side: "l" | "r") => {
+  const onPortDown = (e: ReactMouseEvent, nodeId: string, side: PortSide) => {
     e.stopPropagation();
     e.preventDefault();
     const node = nodes.find((n) => n.id === nodeId);
     if (!node) return;
     setTool("connect");
+    const pos = getPortPosition(node, side);
     setDrag({
       kind: "connect",
       from: nodeId,
-      x: side === "r" ? node.x + node.w : node.x,
-      y: node.y + node.h / 2,
+      fromPort: side,
+      x: pos.x,
+      y: pos.y,
     });
   };
 
@@ -217,7 +225,14 @@ export function Canvas() {
         const el = document.elementFromPoint(e.clientX, e.clientY);
         const nodeEl = (el as HTMLElement | null)?.closest?.(".node") as HTMLElement | null;
         const id = nodeEl?.dataset.id;
-        if (id && id !== drag.from) addEdge(drag.from, id);
+        if (id && id !== drag.from) {
+          const targetNode = useNodeStore.getState().nodes.find((n) => n.id === id);
+          if (targetNode) {
+            const cp = screenToCanvas(e.clientX, e.clientY);
+            const toPort = getNearestPort(targetNode, cp.x, cp.y);
+            addEdge(drag.from, id, drag.fromPort, toPort);
+          }
+        }
         setHoverConnectTarget(null);
         setTool("select");
       }
@@ -311,12 +326,17 @@ export function Canvas() {
           (() => {
             const a = nodeMap[drag.from];
             if (!a) return null;
-            const ax = a.x + a.w;
-            const ay = a.y + a.h / 2;
+            const sp = getPortPosition(a, drag.fromPort);
             const target = hoverConnectTargetId ? nodeMap[hoverConnectTargetId] : null;
-            const bx = target ? target.x : drag.x;
-            const by = target ? target.y + target.h / 2 : drag.y;
-            return <path className="edge-line is-temp" d={freePath(ax, ay, bx, by)} />;
+            let tp: { x: number; y: number };
+            let tpSide: PortSide | undefined;
+            if (target) {
+              tpSide = getNearestPort(target, drag.x, drag.y);
+              tp = getPortPosition(target, tpSide);
+            } else {
+              tp = { x: drag.x, y: drag.y };
+            }
+            return <path className="edge-line is-temp" d={freePath(sp.x, sp.y, tp.x, tp.y, drag.fromPort, tpSide)} />;
           })()}
       </svg>
 

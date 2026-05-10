@@ -165,22 +165,31 @@ button { font-family: inherit; }
 
 .node-port {
   position: absolute;
-  top: 50%;
+  z-index: 2;
   width: 10px;
   height: 10px;
-  margin-top: -5px;
   border-radius: 50%;
   background: var(--bg);
   border: 1.5px solid var(--accent);
   cursor: crosshair;
   opacity: 0;
-  transition: opacity 0.12s;
+  transition: opacity 0.12s, transform 0.12s;
 }
 .node:hover .node-port,
 .node.is-selected .node-port,
 .canvas.is-connect .node-port { opacity: 1; }
-.node-port.l { left: -5px; }
-.node-port.r { right: -5px; }
+.node-port:hover {
+  transform: scale(1.4);
+  background: var(--accent);
+}
+.node-port.top { top: -5px; left: 50%; transform: translateX(-50%); }
+.node-port.top:hover { transform: translateX(-50%) scale(1.4); }
+.node-port.right { right: -5px; top: 50%; transform: translateY(-50%); }
+.node-port.right:hover { transform: translateY(-50%) scale(1.4); }
+.node-port.bottom { bottom: -5px; left: 50%; transform: translateX(-50%); }
+.node-port.bottom:hover { transform: translateX(-50%) scale(1.4); }
+.node-port.left { left: -5px; top: 50%; transform: translateY(-50%); }
+.node-port.left:hover { transform: translateY(-50%) scale(1.4); }
 
 /* ── Edges ────────────────────────────────────────────────────── */
 .edge-line {
@@ -530,6 +539,33 @@ button { font-family: inherit; }
   border-radius: 3px;
   color: var(--text-dim);
   margin-right: 2px;
+}
+
+/* ── Doc overlay (expanded) ──────────────────────────────────── */
+.doc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+.doc-overlay-content {
+  width: min(680px, 90vw);
+  height: min(520px, 80vh);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+  animation: doc-expand-in 0.18s cubic-bezier(0.3, 0.7, 0.4, 1) both;
+}
+@keyframes doc-expand-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 /* ── Doc panel ────────────────────────────────────────────────── */
