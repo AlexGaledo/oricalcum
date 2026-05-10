@@ -19,8 +19,7 @@ export function StatusBar() {
 
   const zoomBy = (dir: number) => {
     setCamera((c) => {
-      const factor = dir > 0 ? APP.zoom.defaultStep : 1 / APP.zoom.defaultStep;
-      const newZoom = clamp(c.zoom * factor, APP.zoom.min, APP.zoom.max);
+      const newZoom = clamp(c.zoom + 0.1 * dir, APP.zoom.min, APP.zoom.max);
       const w = window.innerWidth;
       const h = window.innerHeight;
       const mx = w / 2;

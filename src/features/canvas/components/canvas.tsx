@@ -94,7 +94,7 @@ export function Canvas() {
       const mx = e.clientX - r.left;
       const my = e.clientY - r.top;
       setCamera((c) => {
-        const factor = Math.exp(-e.deltaY * 0.01);
+        const factor = Math.exp(-e.deltaY * 0.005);
         const newZoom = clamp(c.zoom * factor, APP.zoom.min, APP.zoom.max);
         const real = newZoom / c.zoom;
         return {
