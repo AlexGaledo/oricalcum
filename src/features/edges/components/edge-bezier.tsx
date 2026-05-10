@@ -3,6 +3,7 @@
 import type { MouseEvent } from "react";
 import { cn } from "@/shared/lib/cn";
 import type { EdgeAnimationStyle, OriEdge, OriNode } from "@/shared/types";
+import { getPortPosition } from "@/features/nodes/utils/port-positions";
 import { edgePath } from "../utils/edge-path";
 
 interface EdgeBezierProps {
@@ -25,7 +26,9 @@ export function EdgeBezier({
   onClick,
 }: EdgeBezierProps) {
   const dur = (110 - speed) / 30;
-  const d = edgePath(a, b);
+  const sp = getPortPosition(a, edge.fromPort);
+  const tp = getPortPosition(b, edge.toPort);
+  const d = edgePath(sp.x, sp.y, edge.fromPort, tp.x, tp.y, edge.toPort);
   const cls = cn(
     "edge-line",
     animated && style === "flow" && "style-flow",
