@@ -8,12 +8,27 @@ import { APP } from "@/config/app.config";
 export function Topbar() {
   const themeOpen = useCanvasStore((s) => s.themeOpen);
   const setThemeOpen = useCanvasStore((s) => s.setThemeOpen);
+  const fileTreeOpen = useCanvasStore((s) => s.fileTreeOpen);
+  const setFileTreeOpen = useCanvasStore((s) => s.setFileTreeOpen);
   const themeName = useThemeStore((s) => s.themeName);
+  const hideAll = useThemeStore((s) => s.hideAllUi);
+
+  if (hideAll) return null;
 
   return (
     <>
       <div className="topbar">
         <div className="brand">
+          <button
+            type="button"
+            className="hamburger-btn"
+            data-active={fileTreeOpen ? "1" : "0"}
+            onClick={() => setFileTreeOpen((s) => !s)}
+            aria-label="Toggle file explorer"
+            title="Files"
+          >
+            <span /><span /><span />
+          </button>
           <div className="brand-mark">
             <svg viewBox="0 0 12 12" fill="none">
               <path
@@ -26,9 +41,6 @@ export function Topbar() {
             </svg>
           </div>
           <div className="brand-name">{APP.name}</div>
-          <div className="brand-meta">{APP.version}</div>
-        </div>
-        <div className="topbar-right">
           <button
             type="button"
             className="iconbtn-pill"
@@ -39,10 +51,11 @@ export function Topbar() {
             <span className="swatch" />
             <span className="lbl">{themeName}</span>
           </button>
+          <div className="brand-meta">{APP.version}</div>
         </div>
       </div>
       {themeOpen && (
-        <div style={{ position: "fixed", top: 56, right: 24, zIndex: 50 }}>
+        <div style={{ position: "fixed", top: 56, left: 24, zIndex: 50 }}>
           <ThemePicker onClose={() => setThemeOpen(false)} />
         </div>
       )}

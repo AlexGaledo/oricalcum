@@ -1,8 +1,9 @@
 "use client";
 
-import type { MouseEvent } from "react";
-import { useCanvasStore } from "@/features/canvas/store/canvas.store";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { useCanvasStore, type ToolbarSide } from "@/features/canvas/store/canvas.store";
 import { useNodeStore } from "@/features/nodes/store/node.store";
+import { useThemeStore } from "@/features/themes/store/theme.store";
 import { SHAPES } from "@/shared/constants/shapes";
 import {
   CursorIcon,
@@ -14,6 +15,24 @@ import {
 import { ShapeGlyph } from "@/features/nodes/components/node-shapes";
 import type { ShapeId } from "@/shared/types";
 
+const EDGE_SNAP = 80;
+
+function nearEdgeSide(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): ToolbarSide | null {
+  const candidates = [
+    { s: "left" as const, v: x },
+    { s: "right" as const, v: w - x },
+    { s: "top" as const, v: y },
+    { s: "bottom" as const, v: h - y },
+  ];
+  candidates.sort((a, b) => a.v - b.v);
+  return candidates[0].v <= EDGE_SNAP ? candidates[0].s : null;
+}
+
 export function Toolbar() {
   const tool = useCanvasStore((s) => s.tool);
   const setTool = useCanvasStore((s) => s.setTool);
@@ -22,7 +41,16 @@ export function Toolbar() {
   const setDrag = useCanvasStore((s) => s.setDrag);
   const tweaksOpen = useCanvasStore((s) => s.tweaksOpen);
   const setTweaksOpen = useCanvasStore((s) => s.setTweaksOpen);
+  const toolbarSide = useCanvasStore((s) => s.toolbarSide);
+  const setToolbarSide = useCanvasStore((s) => s.setToolbarSide);
+  const toolbarPos = useCanvasStore((s) => s.toolbarPos);
+  const setToolbarPos = useCanvasStore((s) => s.setToolbarPos);
   const hasNodes = useNodeStore((s) => s.nodes.length > 0);
+  const visible = useThemeStore((s) => s.showToolbar && !s.hideAllUi);
+
+  const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
+  const grabOffsetRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const onShapeDragStart = (e: MouseEvent, shapeId: ShapeId) => {
     e.preventDefault();
@@ -30,83 +58,179 @@ export function Toolbar() {
     setShapeMenuOpen(false);
   };
 
-  return (
-    <div className="toolbar">
-      <button
-        type="button"
-        className="tool-btn"
-        data-active={tool === "select" ? "1" : "0"}
-        onClick={() => setTool("select")}
-      >
-        <CursorIcon />
-        <span className="tool-tip">
-          Select <kbd>V</kbd>
-        </span>
-      </button>
-      <button
-        type="button"
-        className="tool-btn"
-        data-active={shapeMenuOpen ? "1" : "0"}
-        onClick={() => setShapeMenuOpen((s) => !s)}
-      >
-        <HexIcon />
-        <span className="tool-tip">
-          Nodes <kbd>N</kbd>
-        </span>
-      </button>
-      <button
-        type="button"
-        className="tool-btn"
-        data-active={tool === "connect" ? "1" : "0"}
-        onClick={() => setTool(tool === "connect" ? "select" : "connect")}
-        disabled={!hasNodes}
-        style={{ opacity: hasNodes ? 1 : 0.4 }}
-      >
-        <LinkIcon />
-        <span className="tool-tip">
-          Connect <kbd>C</kbd>
-        </span>
-      </button>
-      <div className="tool-divider" />
-      <button
-        type="button"
-        className="tool-btn"
-        data-active={tool === "delete" ? "1" : "0"}
-        onClick={() => setTool(tool === "delete" ? "select" : "delete")}
-      >
-        <TrashIcon />
-        <span className="tool-tip">
-          Delete <kbd>D</kbd>
-        </span>
-      </button>
-      <div className="tool-divider" />
-      <button
-        type="button"
-        className="tool-btn"
-        data-active={tweaksOpen ? "1" : "0"}
-        onClick={() => setTweaksOpen((s) => !s)}
-      >
-        <SlidersIcon />
-        <span className="tool-tip">
-          Tweaks <kbd>T</kbd>
-        </span>
-      </button>
+  const onGripDown = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = rootRef.current?.getBoundingClientRect();
+    grabOffsetRef.current = rect
+      ? { dx: e.clientX - rect.left, dy: e.clientY - rect.top }
+      : { dx: 0, dy: 0 };
+    setGhost({ x: e.clientX - grabOffsetRef.current.dx, y: e.clientY - grabOffsetRef.current.dy });
+  };
 
-      {shapeMenuOpen && (
-        <div className="shape-flyout" onClick={(e) => e.stopPropagation()}>
-          <div className="shape-flyout-label">// node.kinds — drag onto canvas</div>
-          {SHAPES.map((s) => (
-            <div
-              key={s.id}
-              className="shape-pill"
-              onMouseDown={(e) => onShapeDragStart(e, s.id)}
-            >
-              <ShapeGlyph id={s.id} />
-              <span className="lbl">{s.label}</span>
-            </div>
-          ))}
-        </div>
+  useEffect(() => {
+    if (!ghost) return;
+    const onMove = (e: globalThis.MouseEvent) => {
+      setGhost({
+        x: e.clientX - grabOffsetRef.current.dx,
+        y: e.clientY - grabOffsetRef.current.dy,
+      });
+    };
+    const onUp = (e: globalThis.MouseEvent) => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const dropX = e.clientX - grabOffsetRef.current.dx;
+      const dropY = e.clientY - grabOffsetRef.current.dy;
+      const edge = nearEdgeSide(e.clientX, e.clientY, w, h);
+      if (edge) {
+        setToolbarSide(edge);
+        setToolbarPos(null);
+      } else {
+        const rect = rootRef.current?.getBoundingClientRect();
+        const tw = rect?.width ?? 200;
+        const th = rect?.height ?? 40;
+        const clampedX = Math.max(8, Math.min(w - tw - 8, dropX));
+        const clampedY = Math.max(8, Math.min(h - th - 8, dropY));
+        setToolbarPos({ x: clampedX, y: clampedY });
+      }
+      setGhost(null);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [ghost, setToolbarSide, setToolbarPos, toolbarSide]);
+
+  const previewEdge = ghost
+    ? nearEdgeSide(
+        ghost.x + grabOffsetRef.current.dx,
+        ghost.y + grabOffsetRef.current.dy,
+        typeof window !== "undefined" ? window.innerWidth : 1280,
+        typeof window !== "undefined" ? window.innerHeight : 720,
+      )
+    : null;
+  const previewSide = previewEdge ?? toolbarSide;
+  const useFreePos = !!toolbarPos && !ghost;
+  const freeStyle =
+    ghost
+      ? {
+          left: `${ghost.x}px`,
+          top: `${ghost.y}px`,
+          right: "auto" as const,
+          bottom: "auto" as const,
+          transform: "none" as const,
+        }
+      : useFreePos
+        ? {
+            left: `${toolbarPos!.x}px`,
+            top: `${toolbarPos!.y}px`,
+            right: "auto" as const,
+            bottom: "auto" as const,
+            transform: "none" as const,
+          }
+        : undefined;
+
+  if (!visible) return null;
+
+  return (
+    <>
+      <div
+        ref={rootRef}
+        className="toolbar"
+        data-side={previewSide}
+        data-dragging={ghost ? "1" : "0"}
+        style={freeStyle}
+      >
+        <button
+          type="button"
+          className="tool-grip"
+          onMouseDown={onGripDown}
+          aria-label="Drag toolbar"
+        >
+          <span /><span /><span /><span /><span /><span />
+        </button>
+        <div className="tool-divider" />
+        <button
+          type="button"
+          className="tool-btn"
+          data-active={tool === "select" ? "1" : "0"}
+          onClick={() => setTool("select")}
+        >
+          <CursorIcon />
+          <span className="tool-tip">
+            Select <kbd>V</kbd>
+          </span>
+        </button>
+        <button
+          type="button"
+          className="tool-btn"
+          data-active={shapeMenuOpen ? "1" : "0"}
+          onClick={() => setShapeMenuOpen((s) => !s)}
+        >
+          <HexIcon />
+          <span className="tool-tip">
+            Nodes <kbd>N</kbd>
+          </span>
+        </button>
+        <button
+          type="button"
+          className="tool-btn"
+          data-active={tool === "connect" ? "1" : "0"}
+          onClick={() => setTool(tool === "connect" ? "select" : "connect")}
+          disabled={!hasNodes}
+          style={{ opacity: hasNodes ? 1 : 0.4 }}
+        >
+          <LinkIcon />
+          <span className="tool-tip">
+            Connect <kbd>C</kbd>
+          </span>
+        </button>
+        <div className="tool-divider" />
+        <button
+          type="button"
+          className="tool-btn"
+          data-active={tool === "delete" ? "1" : "0"}
+          onClick={() => setTool(tool === "delete" ? "select" : "delete")}
+        >
+          <TrashIcon />
+          <span className="tool-tip">
+            Delete <kbd>D</kbd>
+          </span>
+        </button>
+        <div className="tool-divider" />
+        <button
+          type="button"
+          className="tool-btn"
+          data-active={tweaksOpen ? "1" : "0"}
+          onClick={() => setTweaksOpen((s) => !s)}
+        >
+          <SlidersIcon />
+          <span className="tool-tip">
+            Tweaks <kbd>T</kbd>
+          </span>
+        </button>
+
+        {shapeMenuOpen && (
+          <div className="shape-flyout" onClick={(e) => e.stopPropagation()}>
+            <div className="shape-flyout-label">// node.kinds — drag onto canvas</div>
+            {SHAPES.map((s) => (
+              <div
+                key={s.id}
+                className="shape-pill"
+                onMouseDown={(e) => onShapeDragStart(e, s.id)}
+              >
+                <ShapeGlyph id={s.id} />
+                <span className="lbl">{s.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {ghost && previewEdge && (
+        <div className="toolbar-snap-hint" data-side={previewEdge} />
       )}
-    </div>
+    </>
   );
 }

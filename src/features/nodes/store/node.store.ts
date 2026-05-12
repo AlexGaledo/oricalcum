@@ -14,6 +14,7 @@ interface NodeStore {
   hoverConnectTargetId: string | null;
   createNode: (shape: ShapeId, cx: number, cy: number, scale: number) => string;
   moveNode: (id: string, x: number, y: number) => void;
+  resizeNode: (id: string, w: number, h: number) => void;
   removeNode: (id: string) => void;
   updateNode: (id: string, patch: Partial<OriNode>) => void;
   setSelected: (id: string | null) => void;
@@ -51,6 +52,14 @@ export const useNodeStore = create<NodeStore>((set) => ({
   moveNode: (id, x, y) =>
     set((s) => ({
       nodes: s.nodes.map((n) => (n.id === id ? { ...n, x, y } : n)),
+    })),
+  resizeNode: (id, w, h) =>
+    set((s) => ({
+      nodes: s.nodes.map((n) =>
+        n.id === id
+          ? { ...n, w, h, baseW: w, baseH: h, updatedAt: Date.now() }
+          : n,
+      ),
     })),
   removeNode: (id) =>
     set((s) => ({

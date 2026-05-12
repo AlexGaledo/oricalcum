@@ -3,6 +3,7 @@
 import { useCanvasStore } from "@/features/canvas/store/canvas.store";
 import { useNodeStore } from "@/features/nodes/store/node.store";
 import { useEdgeStore } from "@/features/edges/store/edge.store";
+import { useThemeStore } from "@/features/themes/store/theme.store";
 import { ZoomInIcon, ZoomOutIcon, FitIcon } from "@/shared/components/icons";
 import { clamp } from "@/shared/lib/clamp";
 import { APP } from "@/config/app.config";
@@ -16,6 +17,9 @@ export function StatusBar() {
   const mouse = useCanvasStore((s) => s.mouse);
   const nodes = useNodeStore((s) => s.nodes);
   const edges = useEdgeStore((s) => s.edges);
+  const show = useThemeStore((s) => s.showStatusBar);
+  const hideAll = useThemeStore((s) => s.hideAllUi);
+  const setTweak = useThemeStore((s) => s.setTweak);
 
   const zoomBy = (dir: number) => {
     setCamera((c) => {
@@ -51,8 +55,19 @@ export function StatusBar() {
     });
   };
 
+  if (!show || hideAll) return null;
+
   return (
     <div className="statusbar">
+      <button
+        type="button"
+        className="status-hide"
+        onClick={() => setTweak("showStatusBar", false)}
+        title="Hide status bar"
+        aria-label="Hide status bar"
+      >
+        ✕
+      </button>
       <div className="status-chip">
         <span className="k">CUR</span>
         <span className="v">

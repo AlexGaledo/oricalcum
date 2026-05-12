@@ -13,6 +13,7 @@ interface EdgeBezierProps {
   animated: boolean;
   style: EdgeAnimationStyle;
   speed: number;
+  isSelected: boolean;
   onClick: (e: MouseEvent) => void;
 }
 
@@ -23,6 +24,7 @@ export function EdgeBezier({
   animated,
   style,
   speed,
+  isSelected,
   onClick,
 }: EdgeBezierProps) {
   const dur = (110 - speed) / 30;
@@ -33,10 +35,20 @@ export function EdgeBezier({
     "edge-line",
     animated && style === "flow" && "style-flow",
     animated && style === "pulse" && "style-pulse",
+    isSelected && "is-selected",
   );
   const cssVars = { "--connect-duration": `${dur}s` } as React.CSSProperties;
   return (
     <g>
+      <path
+        d={d}
+        stroke="transparent"
+        strokeWidth={14}
+        fill="none"
+        className="edge-hit"
+        onClick={onClick}
+        style={{ cursor: "pointer" }}
+      />
       <path className={cls} d={d} style={cssVars} onClick={onClick} />
       {animated && style === "orbit" && (
         <circle r="3.5" className="edge-orbit">

@@ -11,7 +11,7 @@ import {
 } from "react";
 import { useCanvasStore } from "@/features/canvas/store/canvas.store";
 import { useThemeStore } from "@/features/themes/store/theme.store";
-import { THEME_PRESETS, ACCENT_SWATCHES } from "@/config/theme.config";
+import { THEME_PRESETS, ACCENT_SWATCHES, FONT_PRESETS } from "@/config/theme.config";
 import { isLightHex } from "@/shared/lib/hex-to-rgb";
 import { TWEAKS_STYLE } from "../constants/tweaks-styles";
 
@@ -26,6 +26,7 @@ export function TweaksPanel({
 }) {
   const open = useCanvasStore((s) => s.tweaksOpen);
   const setOpen = useCanvasStore((s) => s.setTweaksOpen);
+  const hideAll = useThemeStore((s) => s.hideAllUi);
   const dragRef = useRef<HTMLDivElement>(null);
   const offsetRef = useRef({ x: 16, y: 16 });
 
@@ -95,7 +96,7 @@ export function TweaksPanel({
     window.addEventListener("mouseup", up);
   };
 
-  if (!open) return null;
+  if (!open || hideAll) return null;
   return (
     <>
       <style>{TWEAKS_STYLE}</style>
@@ -420,19 +421,21 @@ export function OricalcumTweaks() {
           ]}
           onChange={(v) => t.setTweak("bgMode", v)}
         />
-        <TweakRadio
-          label="Type"
+        <TweakSelect
+          label="Font"
           value={t.fontMode}
-          options={[
-            { value: "mono", label: "Mono" },
-            { value: "inter", label: "Inter" },
-          ]}
+          options={FONT_PRESETS.map((f) => ({ value: f.value, label: f.label }))}
           onChange={(v) => t.setTweak("fontMode", v)}
         />
         <TweakToggle
           label="Minimap"
           value={t.showMinimap}
           onChange={(v) => t.setTweak("showMinimap", v)}
+        />
+        <TweakToggle
+          label="Status bar"
+          value={t.showStatusBar}
+          onChange={(v) => t.setTweak("showStatusBar", v)}
         />
       </TweakSection>
       <TweakSection label="Nodes">

@@ -68,4 +68,5 @@ export type DragGesture =
   | { kind: "node"; id: string; startX: number; startY: number; origX: number; origY: number }
   | { kind: "spawn"; shape: ShapeId; x: number; y: number }
   | { kind: "connect"; from: string; fromPort: PortSide; x: number; y: number }
+  | { kind: "resize"; id: string; startX: number; startY: number; origW: number; origH: number }
   | null;
