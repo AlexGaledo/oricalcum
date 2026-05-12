@@ -40,6 +40,7 @@ export function Canvas() {
   const setSelected = useNodeStore((s) => s.setSelected);
   const createNode = useNodeStore((s) => s.createNode);
   const moveNode = useNodeStore((s) => s.moveNode);
+  const resizeNode = useNodeStore((s) => s.resizeNode);
   const removeNode = useNodeStore((s) => s.removeNode);
   const hoverConnectTargetId = useNodeStore((s) => s.hoverConnectTargetId);
   const setHoverConnectTarget = useNodeStore((s) => s.setHoverConnectTarget);
@@ -48,6 +49,8 @@ export function Canvas() {
   const addEdge = useEdgeStore((s) => s.addEdge);
   const removeEdge = useEdgeStore((s) => s.removeEdge);
   const removeEdgesForNode = useEdgeStore((s) => s.removeEdgesForNode);
+  const selectedEdgeId = useEdgeStore((s) => s.selectedEdgeId);
+  const setSelectedEdge = useEdgeStore((s) => s.setSelectedEdge);
 
   const setOpenDocId = useCanvasStore((s) => s.setOpenDocId);
   const openDocId = useCanvasStore((s) => s.openDocId);
@@ -120,6 +123,7 @@ export function Canvas() {
     if (target !== e.currentTarget && !target.classList?.contains("canvas-bg")) return;
     if (tool === "select") {
       setSelected(null);
+      setSelectedEdge(null);
       setDrag({
         kind: "pan",
         startX: e.clientX,
@@ -154,6 +158,7 @@ export function Canvas() {
       return;
     }
     setSelected(nodeId);
+    setSelectedEdge(null);
     setDrag({
       kind: "node",
       id: nodeId,
@@ -168,6 +173,23 @@ export function Canvas() {
     e.stopPropagation();
     setOpenDocId(nodeId);
     setSelected(nodeId);
+  };
+
+  const onNodeResizeDown = (e: ReactMouseEvent, nodeId: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (tool !== "select") return;
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+    setSelected(nodeId);
+    setDrag({
+      kind: "resize",
+      id: nodeId,
+      startX: e.clientX,
+      startY: e.clientY,
+      origW: node.w,
+      origH: node.h,
+    });
   };
 
   const onPortDown = (e: ReactMouseEvent, nodeId: string, side: PortSide) => {
@@ -200,6 +222,12 @@ export function Canvas() {
         const dx = (e.clientX - drag.startX) / camera.zoom;
         const dy = (e.clientY - drag.startY) / camera.zoom;
         moveNode(drag.id, Math.round(drag.origX + dx), Math.round(drag.origY + dy));
+      } else if (drag.kind === "resize") {
+        const dw = (e.clientX - drag.startX) / camera.zoom;
+        const dh = (e.clientY - drag.startY) / camera.zoom;
+        const nextW = Math.max(40, Math.round(drag.origW + dw));
+        const nextH = Math.max(28, Math.round(drag.origH + dh));
+        resizeNode(drag.id, nextW, nextH);
       } else if (drag.kind === "spawn") {
         setDrag((d) => (d?.kind === "spawn" ? { ...d, x: e.clientX, y: e.clientY } : d));
       } else if (drag.kind === "connect") {
@@ -251,6 +279,7 @@ export function Canvas() {
     setCamera,
     setDrag,
     moveNode,
+    resizeNode,
     createNode,
     addEdge,
     setHoverConnectTarget,
@@ -315,9 +344,15 @@ export function Canvas() {
               animated={connectionsAnimated}
               style={connectionStyle}
               speed={connectionSpeed}
+              isSelected={selectedEdgeId === edge.id}
               onClick={(e) => {
                 e.stopPropagation();
-                if (tool === "delete") removeEdge(edge.id);
+                if (tool === "delete") {
+                  removeEdge(edge.id);
+                  return;
+                }
+                setSelectedEdge(edge.id);
+                setSelected(null);
               }}
             />
           );
@@ -351,6 +386,7 @@ export function Canvas() {
             onPointerDown={(e) => onNodeDown(e, n.id)}
             onDoubleClick={(e) => onNodeDouble(e, n.id)}
             onPortDown={(e, side) => onPortDown(e, n.id, side)}
+            onResizeDown={(e) => onNodeResizeDown(e, n.id)}
           />
         ))}
       </div>

@@ -10,10 +10,13 @@ export function useKeyboardShortcuts() {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       const inField =
-        target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable === true;
       if (inField) return;
 
       const cs = useCanvasStore.getState();
+      if (cs.openDocId) return;
       const ns = useNodeStore.getState();
       const es = useEdgeStore.getState();
 
@@ -39,6 +42,10 @@ export function useKeyboardShortcuts() {
           ns.removeNode(id);
           es.removeEdgesForNode(id);
           if (cs.openDocId === id) cs.setOpenDocId(null);
+          return;
+        }
+        if (es.selectedEdgeId) {
+          es.removeEdge(es.selectedEdgeId);
         }
       }
     };

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Lora, Space_Grotesk, Caveat } from "next/font/google";
 import { Providers } from "@/providers";
 import "./globals.css";
 
@@ -15,6 +15,24 @@ const jbm = JetBrains_Mono({
   display: "swap",
 });
 
+const lora = Lora({
+  subsets: ["latin"],
+  variable: "--next-font-lora",
+  display: "swap",
+});
+
+const grotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--next-font-grotesk",
+  display: "swap",
+});
+
+const caveat = Caveat({
+  subsets: ["latin"],
+  variable: "--next-font-caveat",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "Oricalcum",
   description: "Visual systems canvas — nodes, edges, themes.",
@@ -22,7 +40,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${jbm.variable}`}>
+    <html
+      lang="en"
+      className={`${inter.variable} ${jbm.variable} ${lora.variable} ${grotesk.variable} ${caveat.variable}`}
+    >
       <body suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>

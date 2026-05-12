@@ -14,13 +14,14 @@ interface NodeCardProps {
   onPointerDown: (e: MouseEvent) => void;
   onDoubleClick: (e: MouseEvent) => void;
   onPortDown: (e: MouseEvent, side: PortSide) => void;
+  onResizeDown: (e: MouseEvent) => void;
 }
 
 const PORT_SIDES: PortSide[] = ["top", "right", "bottom", "left"];
 
 export function NodeCard({
   node, isSelected, isConnectSource, isDragging,
-  onPointerDown, onDoubleClick, onPortDown,
+  onPointerDown, onDoubleClick, onPortDown, onResizeDown,
 }: NodeCardProps) {
   const hasShapeBg =
     node.shape === "hexagon" || node.shape === "diamond" || node.shape === "cloud";
@@ -57,6 +58,12 @@ export function NodeCard({
           onMouseDown={(e) => onPortDown(e, side)}
         />
       ))}
+      {isSelected && !isDragging && (
+        <span
+          className="node-resize-handle"
+          onMouseDown={onResizeDown}
+        />
+      )}
     </motion.div>
   );
 }

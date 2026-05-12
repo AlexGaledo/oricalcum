@@ -11,7 +11,7 @@ import {
 } from "react";
 import { useCanvasStore } from "@/features/canvas/store/canvas.store";
 import { useThemeStore } from "@/features/themes/store/theme.store";
-import { THEME_PRESETS, ACCENT_SWATCHES } from "@/config/theme.config";
+import { THEME_PRESETS, ACCENT_SWATCHES, FONT_PRESETS } from "@/config/theme.config";
 import { isLightHex } from "@/shared/lib/hex-to-rgb";
 import { TWEAKS_STYLE } from "../constants/tweaks-styles";
 
@@ -420,13 +420,10 @@ export function OricalcumTweaks() {
           ]}
           onChange={(v) => t.setTweak("bgMode", v)}
         />
-        <TweakRadio
-          label="Type"
+        <TweakSelect
+          label="Font"
           value={t.fontMode}
-          options={[
-            { value: "mono", label: "Mono" },
-            { value: "inter", label: "Inter" },
-          ]}
+          options={FONT_PRESETS.map((f) => ({ value: f.value, label: f.label }))}
           onChange={(v) => t.setTweak("fontMode", v)}
         />
         <TweakToggle
