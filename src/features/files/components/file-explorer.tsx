@@ -12,6 +12,7 @@ import { FileTreeItem } from "./file-tree-item";
 export function FileExplorer() {
   const router = useRouter();
   const navGuard = useRef(false);
+  const [transitioning, setTransitioning] = useState(false);
   const open = useCanvasStore((s) => s.fileTreeOpen);
   const hideAll = useThemeStore((s) => s.hideAllUi);
   const tree = useFilesStore((s) => s.tree);
@@ -30,12 +31,19 @@ export function FileExplorer() {
   const handleDashboard = () => {
     if (navGuard.current) return;
     navGuard.current = true;
+    setTransitioning(true);
     saveCurrentSnapshot();
     router.push("/dashboard");
   };
 
   return (
-    <div
+    <>
+      {transitioning && (
+        <div className="dash-transition">
+          <div className="loading-screen-spinner" />
+        </div>
+      )}
+      <div
       className="file-explorer"
       data-open={open && !hideAll ? "1" : "0"}
       aria-hidden={!open || hideAll}
@@ -127,5 +135,6 @@ export function FileExplorer() {
         </div>
       )}
     </div>
+    </>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCanvasStore } from "@/features/canvas/store/canvas.store";
 import { useThemeStore } from "@/features/themes/store/theme.store";
@@ -11,6 +11,7 @@ import { APP } from "@/config/app.config";
 export function Topbar() {
   const router = useRouter();
   const navGuard = useRef(false);
+  const [transitioning, setTransitioning] = useState(false);
   const themeOpen = useCanvasStore((s) => s.themeOpen);
   const setThemeOpen = useCanvasStore((s) => s.setThemeOpen);
   const fileTreeOpen = useCanvasStore((s) => s.fileTreeOpen);
@@ -25,6 +26,7 @@ export function Topbar() {
   const handleLogoClick = () => {
     if (navGuard.current) return;
     navGuard.current = true;
+    setTransitioning(true);
     saveCurrentSnapshot();
     router.push("/dashboard");
   };
@@ -33,6 +35,11 @@ export function Topbar() {
 
   return (
     <>
+      {transitioning && (
+        <div className="dash-transition">
+          <div className="loading-screen-spinner" />
+        </div>
+      )}
       <div className="topbar">
         <div className="brand">
           <button

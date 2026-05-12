@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
 import { WorkspaceCard } from "@/features/workspaces/components/workspace-card";
@@ -25,6 +25,7 @@ export default function DashboardPage() {
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newColor, setNewColor] = useState(ACCENT_SWATCHES[0]);
+  const [transitioning, setTransitioning] = useState(false);
 
   const sorted = [...workspaces].sort((a, b) => b.updatedAt - a.updatedAt);
   const recent = sorted.slice(0, 5);
@@ -38,10 +39,17 @@ export default function DashboardPage() {
     setNewColor(ACCENT_SWATCHES[0]);
   };
 
+  const handleOpenWorkspace = (id: string) => {
+    setTransitioning(true);
+    openWorkspace(id, router);
+  };
+
   const displayed = section === "recent" ? recent : sorted;
 
   return (
-    <div className="dash">
+    <>
+      {transitioning && <div className="dash-transition" />}
+      <div className="dash">
       {/* Left nav */}
       <nav className="dash-nav" data-open={navOpen ? "1" : "0"} aria-label="Dashboard navigation">
         <div className="dash-nav-top">
@@ -100,7 +108,7 @@ export default function DashboardPage() {
                     <WorkspaceCard
                       key={ws.id}
                       workspace={ws}
-                      onClick={() => openWorkspace(ws.id, router)}
+                      onClick={() => handleOpenWorkspace(ws.id)}
                       onDelete={() => deleteWorkspace(ws.id)}
                       onRename={(name) => updateMeta(ws.id, { name })}
                     />
@@ -210,6 +218,7 @@ export default function DashboardPage() {
         </div>
       )}
     </div>
+    </>
   );
 }
 

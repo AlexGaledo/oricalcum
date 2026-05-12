@@ -1509,6 +1509,20 @@ button { font-family: inherit; }
   color: var(--text);
   overflow: hidden;
 }
+.dash-transition {
+  position: fixed; inset: 0; z-index: 999;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+  animation: overlay-in 0.15s ease both;
+}
+.dash-transition .loading-screen-spinner {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(255,255,255,0.06);
+  border-top-color: rgba(var(--accent-rgb),0.9);
+  animation: splash-spin 800ms linear infinite;
+}
+@keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
 
 .dash-nav {
   width: 220px;
