@@ -456,6 +456,16 @@ export function OricalcumTweaks() {
           step={5}
           onChange={(v) => t.setTweak("glow", v)}
         />
+        <TweakToggle
+          label="Floating"
+          value={t.nodeFloating}
+          onChange={(v) => t.setTweak("nodeFloating", v)}
+        />
+        <TweakToggle
+          label="Pulsing"
+          value={t.nodePulsing}
+          onChange={(v) => t.setTweak("nodePulsing", v)}
+        />
       </TweakSection>
       <TweakSection label="Connections">
         <TweakToggle

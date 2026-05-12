@@ -1085,6 +1085,57 @@ button { font-family: inherit; }
 }
 .docpanel-link-btn--ghost:hover { color: var(--text); }
 
+/* ── Node style tweaks (editor panel) ──────────────────────────── */
+.docpanel-tweak-toggle { border-top: 1px solid var(--border); margin: 0; }
+.docpanel-tweak-trigger {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: 10px 0; background: none; border: 0;
+  color: var(--text-dim); font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; cursor: pointer; font-family: inherit;
+}
+.docpanel-tweak-trigger:hover { color: var(--text); }
+.docpanel-chevron { transition: transform 0.12s ease; font-size: 9px; }
+.docpanel-chevron.is-open { transform: rotate(90deg); }
+.docpanel-tweak-body {
+  display: flex; flex-direction: column; gap: 10px; padding: 0 0 12px;
+}
+.docpanel-tweak-row {
+  display: flex; align-items: center; gap: 10px;
+}
+.docpanel-tweak-label {
+  font-size: 11px; color: var(--text-faint); min-width: 46px; flex-shrink: 0;
+}
+.docpanel-shape-picker {
+  display: flex; gap: 4px; flex-wrap: wrap;
+}
+.docpanel-shape-btn {
+  padding: 3px 8px; font-size: 10px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-dim); border-radius: 4px;
+  cursor: pointer; font-family: inherit; text-transform: uppercase;
+  letter-spacing: 0.04em; transition: all 0.1s ease;
+}
+.docpanel-shape-btn:hover { border-color: var(--accent); color: var(--text); }
+.docpanel-shape-btn.is-active { border-color: var(--accent); background: rgba(var(--accent-rgb), 0.12); color: var(--accent); }
+.docpanel-swatches { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.docpanel-color-input {
+  width: 22px; height: 22px; padding: 0; border: 1px solid var(--border);
+  border-radius: 4px; cursor: pointer; background: none; flex-shrink: 0;
+}
+.docpanel-color-input::-webkit-color-swatch-wrapper { padding: 0; }
+.docpanel-color-input::-webkit-color-swatch { border: 0; border-radius: 3px; }
+.docpanel-swatch-btn {
+  width: 22px; height: 22px; border: 1px solid transparent; border-radius: 4px;
+  cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center;
+  transition: border-color 0.12s ease; flex-shrink: 0;
+}
+.docpanel-swatch-btn:hover { border-color: var(--text-faint); }
+.docpanel-swatch-btn svg { width: 12px; height: 12px; }
+.docpanel-swatch-reset { font-size: 13px; color: var(--text-faint); background: var(--surface-2); line-height: 1; }
+.docpanel-swatch-reset:hover { color: var(--text); }
+.docpanel-tweak-slider-wrap { display: flex; align-items: center; gap: 8px; flex: 1; }
+.docpanel-tweak-slider { flex: 1; accent-color: var(--accent); height: 4px; cursor: pointer; }
+.docpanel-tweak-val { font-size: 10px; color: var(--text-dim); min-width: 28px; text-align: right; font-variant-numeric: tabular-nums; }
+
 /* ── Resizable image ──────────────────────────────────────────── */
 .ri-wrap {
   display: inline-block;
