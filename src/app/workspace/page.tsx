@@ -3,12 +3,14 @@
 import { Canvas, Minimap } from "@/features/canvas";
 import { SpawnGhost } from "@/features/nodes";
 import { EditorPanel } from "@/features/documents";
+import { FileExplorer } from "@/features/files";
 import {
   Topbar,
   Toolbar,
   StatusBar,
   ConnectBanner,
   OricalcumTweaks,
+  VisibilityMenu,
 } from "@/features/toolbar";
 
 export default function WorkspacePage() {
@@ -23,6 +25,7 @@ export default function WorkspacePage() {
 
       <Canvas />
       <Topbar />
+      <FileExplorer />
       <Toolbar />
       <ConnectBanner />
       <StatusBar />
@@ -30,6 +33,7 @@ export default function WorkspacePage() {
       <SpawnGhost />
       <EditorPanel />
       <OricalcumTweaks />
+      <VisibilityMenu />
     </div>
   );
 }

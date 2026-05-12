@@ -26,6 +26,7 @@ export function TweaksPanel({
 }) {
   const open = useCanvasStore((s) => s.tweaksOpen);
   const setOpen = useCanvasStore((s) => s.setTweaksOpen);
+  const hideAll = useThemeStore((s) => s.hideAllUi);
   const dragRef = useRef<HTMLDivElement>(null);
   const offsetRef = useRef({ x: 16, y: 16 });
 
@@ -95,7 +96,7 @@ export function TweaksPanel({
     window.addEventListener("mouseup", up);
   };
 
-  if (!open) return null;
+  if (!open || hideAll) return null;
   return (
     <>
       <style>{TWEAKS_STYLE}</style>
@@ -430,6 +431,11 @@ export function OricalcumTweaks() {
           label="Minimap"
           value={t.showMinimap}
           onChange={(v) => t.setTweak("showMinimap", v)}
+        />
+        <TweakToggle
+          label="Status bar"
+          value={t.showStatusBar}
+          onChange={(v) => t.setTweak("showStatusBar", v)}
         />
       </TweakSection>
       <TweakSection label="Nodes">

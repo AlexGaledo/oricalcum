@@ -95,6 +95,24 @@ export function SlidersIcon(props: IconProps) {
     </svg>
   );
 }
+export function EyeIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M2 12 C 5 6, 9 4, 12 4 C 15 4, 19 6, 22 12 C 19 18, 15 20, 12 20 C 9 20, 5 18, 2 12 Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+export function EyeOffIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M3 3 L21 21" />
+      <path d="M10.6 6.2 C 11.1 6.1, 11.6 6, 12 6 C 15 6, 19 8, 22 14" />
+      <path d="M2 14 C 3.5 11, 5.5 8.8, 7.6 7.6" />
+      <path d="M9.5 11.5 a 3 3 0 0 0 4 4" />
+    </svg>
+  );
+}
 export function FitIcon(props: IconProps) {
   return (
     <svg {...base} {...props}>

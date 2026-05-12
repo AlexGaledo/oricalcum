@@ -35,6 +35,9 @@ export const TWEAK_DEFAULTS = {
   connectionStyle: "flow",
   connectionSpeed: 50,
   showMinimap: true,
+  showStatusBar: true,
+  showToolbar: true,
+  hideAllUi: false,
   nodeScale: 100,
   glow: 60,
 } as const;
@@ -48,6 +51,9 @@ export type TweakState = {
   connectionStyle: "flow" | "pulse" | "orbit";
   connectionSpeed: number;
   showMinimap: boolean;
+  showStatusBar: boolean;
+  showToolbar: boolean;
+  hideAllUi: boolean;
   nodeScale: number;
   glow: number;
 };

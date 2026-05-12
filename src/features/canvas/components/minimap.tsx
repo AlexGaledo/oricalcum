@@ -6,16 +6,31 @@ import { useThemeStore } from "@/features/themes/store/theme.store";
 
 export function Minimap() {
   const showMinimap = useThemeStore((s) => s.showMinimap);
+  const hideAll = useThemeStore((s) => s.hideAllUi);
+  const setTweak = useThemeStore((s) => s.setTweak);
   const nodes = useNodeStore((s) => s.nodes);
   const camera = useCanvasStore((s) => s.camera);
   const viewport = useCanvasStore((s) => s.viewport);
 
-  if (!showMinimap) return null;
+  if (!showMinimap || hideAll) return null;
+
+  const HideBtn = (
+    <button
+      type="button"
+      className="minimap-hide"
+      onClick={() => setTweak("showMinimap", false)}
+      title="Hide minimap"
+      aria-label="Hide minimap"
+    >
+      ✕
+    </button>
+  );
 
   if (!nodes.length) {
     return (
       <div className="minimap">
         <div className="minimap-label">// minimap</div>
+        {HideBtn}
       </div>
     );
   }
@@ -38,6 +53,7 @@ export function Minimap() {
   return (
     <div className="minimap">
       <div className="minimap-label">// minimap</div>
+      {HideBtn}
       <svg
         viewBox={`${minX} ${minY} ${w} ${h}`}
         preserveAspectRatio="xMidYMid meet"

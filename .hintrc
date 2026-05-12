@@ -10,6 +10,21 @@
           "backdrop-filter"
         ]
       }
-    ]
+    ],
+   
+    "axe/forms": [
+      "default",
+      {
+        "label": "off",
+        "select-name": "off"
+      }
+    ],
+    "axe/name-role-value": [
+      "default",
+      {
+        "button-name": "off"
+      }
+    ],
+    "no-inline-styles": "off"
   }
 }

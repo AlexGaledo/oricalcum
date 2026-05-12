@@ -18,6 +18,10 @@ interface CanvasStore {
   docExpanded: boolean;
   toolbarSide: ToolbarSide;
   setToolbarSide: (s: ToolbarSide) => void;
+  toolbarPos: { x: number; y: number } | null;
+  setToolbarPos: (p: { x: number; y: number } | null) => void;
+  fileTreeOpen: boolean;
+  setFileTreeOpen: (b: boolean | ((b: boolean) => boolean)) => void;
   setCamera: (cam: Camera | ((c: Camera) => Camera)) => void;
   setTool: (t: ToolMode | ((t: ToolMode) => ToolMode)) => void;
   setDrag: (d: DragGesture | ((d: DragGesture) => DragGesture)) => void;
@@ -46,6 +50,13 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
   docExpanded: false,
   toolbarSide: "top",
   setToolbarSide: (s) => set({ toolbarSide: s }),
+  toolbarPos: null,
+  setToolbarPos: (p) => set({ toolbarPos: p }),
+  fileTreeOpen: false,
+  setFileTreeOpen: (b) =>
+    set((s) => ({
+      fileTreeOpen: typeof b === "function" ? b(s.fileTreeOpen) : b,
+    })),
   setCamera: (cam) =>
     set((s) => ({ camera: typeof cam === "function" ? cam(s.camera) : cam })),
   setTool: (t) =>

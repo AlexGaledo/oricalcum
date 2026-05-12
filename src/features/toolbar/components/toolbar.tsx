@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { useCanvasStore, type ToolbarSide } from "@/features/canvas/store/canvas.store";
 import { useNodeStore } from "@/features/nodes/store/node.store";
+import { useThemeStore } from "@/features/themes/store/theme.store";
 import { SHAPES } from "@/shared/constants/shapes";
 import {
   CursorIcon,
@@ -14,15 +15,22 @@ import {
 import { ShapeGlyph } from "@/features/nodes/components/node-shapes";
 import type { ShapeId } from "@/shared/types";
 
-function nearestSide(x: number, y: number, w: number, h: number): ToolbarSide {
-  const d = [
+const EDGE_SNAP = 80;
+
+function nearEdgeSide(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): ToolbarSide | null {
+  const candidates = [
     { s: "left" as const, v: x },
     { s: "right" as const, v: w - x },
     { s: "top" as const, v: y },
     { s: "bottom" as const, v: h - y },
   ];
-  d.sort((a, b) => a.v - b.v);
-  return d[0].s;
+  candidates.sort((a, b) => a.v - b.v);
+  return candidates[0].v <= EDGE_SNAP ? candidates[0].s : null;
 }
 
 export function Toolbar() {
@@ -35,9 +43,13 @@ export function Toolbar() {
   const setTweaksOpen = useCanvasStore((s) => s.setTweaksOpen);
   const toolbarSide = useCanvasStore((s) => s.toolbarSide);
   const setToolbarSide = useCanvasStore((s) => s.setToolbarSide);
+  const toolbarPos = useCanvasStore((s) => s.toolbarPos);
+  const setToolbarPos = useCanvasStore((s) => s.setToolbarPos);
   const hasNodes = useNodeStore((s) => s.nodes.length > 0);
+  const visible = useThemeStore((s) => s.showToolbar && !s.hideAllUi);
 
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
+  const grabOffsetRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
   const rootRef = useRef<HTMLDivElement>(null);
 
   const onShapeDragStart = (e: MouseEvent, shapeId: ShapeId) => {
@@ -49,17 +61,38 @@ export function Toolbar() {
   const onGripDown = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setGhost({ x: e.clientX, y: e.clientY });
+    const rect = rootRef.current?.getBoundingClientRect();
+    grabOffsetRef.current = rect
+      ? { dx: e.clientX - rect.left, dy: e.clientY - rect.top }
+      : { dx: 0, dy: 0 };
+    setGhost({ x: e.clientX - grabOffsetRef.current.dx, y: e.clientY - grabOffsetRef.current.dy });
   };
 
   useEffect(() => {
     if (!ghost) return;
     const onMove = (e: globalThis.MouseEvent) => {
-      setGhost({ x: e.clientX, y: e.clientY });
+      setGhost({
+        x: e.clientX - grabOffsetRef.current.dx,
+        y: e.clientY - grabOffsetRef.current.dy,
+      });
     };
     const onUp = (e: globalThis.MouseEvent) => {
-      const side = nearestSide(e.clientX, e.clientY, window.innerWidth, window.innerHeight);
-      setToolbarSide(side);
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const dropX = e.clientX - grabOffsetRef.current.dx;
+      const dropY = e.clientY - grabOffsetRef.current.dy;
+      const edge = nearEdgeSide(e.clientX, e.clientY, w, h);
+      if (edge) {
+        setToolbarSide(edge);
+        setToolbarPos(null);
+      } else {
+        const rect = rootRef.current?.getBoundingClientRect();
+        const tw = rect?.width ?? 200;
+        const th = rect?.height ?? 40;
+        const clampedX = Math.max(8, Math.min(w - tw - 8, dropX));
+        const clampedY = Math.max(8, Math.min(h - th - 8, dropY));
+        setToolbarPos({ x: clampedX, y: clampedY });
+      }
       setGhost(null);
     };
     window.addEventListener("mousemove", onMove);
@@ -68,15 +101,48 @@ export function Toolbar() {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [ghost, setToolbarSide]);
+  }, [ghost, setToolbarSide, setToolbarPos, toolbarSide]);
 
-  const previewSide = ghost
-    ? nearestSide(ghost.x, ghost.y, typeof window !== "undefined" ? window.innerWidth : 1280, typeof window !== "undefined" ? window.innerHeight : 720)
-    : toolbarSide;
+  const previewEdge = ghost
+    ? nearEdgeSide(
+        ghost.x + grabOffsetRef.current.dx,
+        ghost.y + grabOffsetRef.current.dy,
+        typeof window !== "undefined" ? window.innerWidth : 1280,
+        typeof window !== "undefined" ? window.innerHeight : 720,
+      )
+    : null;
+  const previewSide = previewEdge ?? toolbarSide;
+  const useFreePos = !!toolbarPos && !ghost;
+  const freeStyle =
+    ghost
+      ? {
+          left: `${ghost.x}px`,
+          top: `${ghost.y}px`,
+          right: "auto" as const,
+          bottom: "auto" as const,
+          transform: "none" as const,
+        }
+      : useFreePos
+        ? {
+            left: `${toolbarPos!.x}px`,
+            top: `${toolbarPos!.y}px`,
+            right: "auto" as const,
+            bottom: "auto" as const,
+            transform: "none" as const,
+          }
+        : undefined;
+
+  if (!visible) return null;
 
   return (
     <>
-      <div ref={rootRef} className="toolbar" data-side={previewSide}>
+      <div
+        ref={rootRef}
+        className="toolbar"
+        data-side={previewSide}
+        data-dragging={ghost ? "1" : "0"}
+        style={freeStyle}
+      >
         <button
           type="button"
           className="tool-grip"
@@ -162,7 +228,9 @@ export function Toolbar() {
           </div>
         )}
       </div>
-      {ghost && <div className="toolbar-snap-hint" data-side={previewSide} />}
+      {ghost && previewEdge && (
+        <div className="toolbar-snap-hint" data-side={previewEdge} />
+      )}
     </>
   );
 }
