@@ -40,6 +40,8 @@ export const TWEAK_DEFAULTS = {
   hideAllUi: false,
   nodeScale: 100,
   glow: 60,
+  nodeFloating: false,
+  nodePulsing: false,
 } as const;
 
 export type TweakState = {
@@ -56,4 +58,6 @@ export type TweakState = {
   hideAllUi: boolean;
   nodeScale: number;
   glow: number;
+  nodeFloating: boolean;
+  nodePulsing: boolean;
 };

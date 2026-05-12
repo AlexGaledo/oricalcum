@@ -60,6 +60,8 @@ export function Canvas() {
   const connectionsAnimated = useThemeStore((s) => s.connectionsAnimated);
   const connectionStyle = useThemeStore((s) => s.connectionStyle);
   const connectionSpeed = useThemeStore((s) => s.connectionSpeed);
+  const nodeFloating = useThemeStore((s) => s.nodeFloating);
+  const nodePulsing = useThemeStore((s) => s.nodePulsing);
 
   useKeyboardShortcuts();
   useViewportTracking();
@@ -383,6 +385,8 @@ export function Canvas() {
             isSelected={selectedId === n.id}
             isConnectSource={drag?.kind === "connect" && drag.from === n.id}
             isDragging={drag?.kind === "node" && drag.id === n.id}
+            floating={nodeFloating}
+            pulsing={nodePulsing}
             onPointerDown={(e) => onNodeDown(e, n.id)}
             onDoubleClick={(e) => onNodeDouble(e, n.id)}
             onPortDown={(e, side) => onPortDown(e, n.id, side)}

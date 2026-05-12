@@ -4,6 +4,7 @@ import { Canvas, Minimap } from "@/features/canvas";
 import { SpawnGhost } from "@/features/nodes";
 import { EditorPanel } from "@/features/documents";
 import { FileExplorer } from "@/features/files";
+import { LoadingScreen } from "@/shared/components/ui/loading-screen";
 import {
   Topbar,
   Toolbar,
@@ -15,7 +16,9 @@ import {
 
 export default function WorkspacePage() {
   return (
-    <div className="app">
+    <>
+      <LoadingScreen />
+      <div className="app">
       <div className="reticles">
         <span className="reticle tl" />
         <span className="reticle tr" />
@@ -35,5 +38,6 @@ export default function WorkspacePage() {
       <OricalcumTweaks />
       <VisibilityMenu />
     </div>
+    </>
   );
 }

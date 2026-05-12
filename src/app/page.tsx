@@ -8,9 +8,8 @@ export default function Home() {
   const [fadeOut, setFadeOut] = useState(false);
 
   useEffect(() => {
-    // Show logo, then start fade, then navigate to /workspace
-    const startFade = window.setTimeout(() => setFadeOut(true), 1400);
-    const navigate = window.setTimeout(() => router.push("/workspace"), 2000);
+    const startFade = window.setTimeout(() => setFadeOut(true), 600);
+    const navigate = window.setTimeout(() => router.push("/dashboard"), 900);
     return () => {
       window.clearTimeout(startFade);
       window.clearTimeout(navigate);

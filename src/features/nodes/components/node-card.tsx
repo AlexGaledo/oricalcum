@@ -1,8 +1,9 @@
 "use client";
 
-import type { MouseEvent } from "react";
+import { useMemo, type MouseEvent } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/shared/lib/cn";
+import { hexToRgb } from "@/shared/lib/hex-to-rgb";
 import type { OriNode, PortSide } from "@/shared/types";
 import { NodeShapeBg } from "./node-shapes";
 
@@ -11,6 +12,8 @@ interface NodeCardProps {
   isSelected: boolean;
   isConnectSource: boolean;
   isDragging: boolean;
+  floating: boolean;
+  pulsing: boolean;
   onPointerDown: (e: MouseEvent) => void;
   onDoubleClick: (e: MouseEvent) => void;
   onPortDown: (e: MouseEvent, side: PortSide) => void;
@@ -20,17 +23,51 @@ interface NodeCardProps {
 const PORT_SIDES: PortSide[] = ["top", "right", "bottom", "left"];
 
 export function NodeCard({
-  node, isSelected, isConnectSource, isDragging,
+  node, isSelected, isConnectSource, isDragging, floating, pulsing,
   onPointerDown, onDoubleClick, onPortDown, onResizeDown,
 }: NodeCardProps) {
   const hasShapeBg =
     node.shape === "hexagon" || node.shape === "diamond" || node.shape === "cloud";
+
+  const shouldFloat = floating && !isDragging;
+  const shouldPulse = pulsing && !isDragging;
+
+  const nodeStyle = useMemo(() => {
+    const s: Record<string, string | number> = {
+      left: node.x, top: node.y, width: node.w, height: node.h,
+    };
+    if (hasShapeBg) {
+      s.borderColor = "transparent";
+      s.background = "transparent";
+      s.boxShadow = "none";
+    }
+    if (node.color) {
+      const [r, g, b] = hexToRgb(node.color);
+      s["--accent" as string] = node.color;
+      s["--accent-rgb" as string] = `${r}, ${g}, ${b}`;
+    }
+    if (node.opacity != null) {
+      s.opacity = node.opacity / 100;
+    }
+    return s;
+  }, [node.x, node.y, node.w, node.h, node.color, node.opacity, hasShapeBg]);
+
   return (
     <motion.div
       layout={false}
       initial={{ opacity: 0, scale: 0.92 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.16, ease: [0.3, 0.7, 0.4, 1] }}
+      animate={{
+        opacity: node.opacity != null ? node.opacity / 100 : 1,
+        scale: shouldPulse ? [1, 1.03, 1] : 1,
+        y: shouldFloat ? [0, -6, 0, 4, 0] : 0,
+        rotate: shouldFloat ? [0, 1, 0, -1, 0] : 0,
+      }}
+      transition={{
+        opacity: { duration: 0.16, ease: [0.3, 0.7, 0.4, 1] },
+        scale: shouldPulse ? { duration: 2.4, ease: "easeInOut", repeat: Infinity, repeatType: "mirror" } : { duration: 0.16 },
+        y: shouldFloat ? { duration: 4, ease: "easeInOut", repeat: Infinity, repeatType: "mirror" } : { duration: 0.16 },
+        rotate: shouldFloat ? { duration: 4, ease: "easeInOut", repeat: Infinity, repeatType: "mirror" } : { duration: 0.16 },
+      }}
       className={cn(
         "node",
         isSelected && "is-selected",
@@ -39,12 +76,7 @@ export function NodeCard({
       )}
       data-shape={node.shape}
       data-id={node.id}
-      style={{
-        left: node.x, top: node.y, width: node.w, height: node.h,
-        borderColor: hasShapeBg ? "transparent" : undefined,
-        background: hasShapeBg ? "transparent" : undefined,
-        boxShadow: hasShapeBg ? "none" : undefined,
-      }}
+      style={nodeStyle}
       onMouseDown={onPointerDown}
       onDoubleClick={onDoubleClick}
     >

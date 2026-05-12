@@ -29,6 +29,8 @@ export interface OriNode {
   body: string;
   createdAt: number;
   updatedAt: number;
+  color?: string;
+  opacity?: number;
 }
 
 export interface OriEdge {
