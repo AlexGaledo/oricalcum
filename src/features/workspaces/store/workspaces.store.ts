@@ -30,7 +30,6 @@ function defaultWorkspace(): WorkspaceRecord {
 interface WorkspacesStore {
   workspaces: WorkspaceRecord[];
   activeId: string | null;
-  navigating: boolean;
   createWorkspace: (name: string, description?: string, accentColor?: string) => void;
   deleteWorkspace: (id: string) => void;
   updateMeta: (id: string, patch: Partial<Pick<WorkspaceRecord, "name" | "description" | "accentColor">>) => void;
@@ -43,7 +42,6 @@ export const useWorkspacesStore = create<WorkspacesStore>()(
     (set, get) => ({
       workspaces: [defaultWorkspace()],
       activeId: null,
-      navigating: false,
 
       createWorkspace: (name, description = "", accentColor = DEFAULT_ACCENT) => {
         const ws: WorkspaceRecord = {
@@ -78,9 +76,7 @@ export const useWorkspacesStore = create<WorkspacesStore>()(
       },
 
       openWorkspace: (id, router) => {
-        const { activeId, workspaces, navigating } = get();
-        if (navigating) return;
-        set({ navigating: true });
+        const { activeId, workspaces } = get();
 
         // save current canvas into active workspace
         if (activeId) {

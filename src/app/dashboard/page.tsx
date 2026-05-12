@@ -19,6 +19,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { workspaces, createWorkspace, deleteWorkspace, updateMeta, openWorkspace } = useWorkspacesStore();
 
+  const navGuard = useRef(false);
   const [navOpen, setNavOpen] = useState(true);
   const [section, setSection] = useState<NavSection>("workspaces");
   const [modalOpen, setModalOpen] = useState(false);
@@ -40,6 +41,8 @@ export default function DashboardPage() {
   };
 
   const handleOpenWorkspace = (id: string) => {
+    if (navGuard.current) return;
+    navGuard.current = true;
     setTransitioning(true);
     openWorkspace(id, router);
   };
