@@ -13,6 +13,7 @@ import {
   OricalcumTweaks,
   VisibilityMenu,
 } from "@/features/toolbar";
+import { AiInputBar } from "@/features/ai-input";
 
 export default function WorkspacePage() {
   return (
@@ -37,6 +38,7 @@ export default function WorkspacePage() {
       <EditorPanel />
       <OricalcumTweaks />
       <VisibilityMenu />
+      <AiInputBar />
     </div>
     </>
   );
