@@ -24,7 +24,7 @@ import { cn } from "@/shared/lib/cn";
 import { APP } from "@/config/app.config";
 import type { PortSide } from "@/shared/types";
 
-export function Canvas() {
+export function Canvas({ readOnly = false }: { readOnly?: boolean }) {
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const camera = useCanvasStore((s) => s.camera);
@@ -138,6 +138,7 @@ export function Canvas() {
 
   const onNodeDown = (e: ReactMouseEvent, nodeId: string) => {
     e.stopPropagation();
+    if (readOnly) return;
     if (tool === "delete") {
       removeNode(nodeId);
       removeEdgesForNode(nodeId);
@@ -173,6 +174,7 @@ export function Canvas() {
 
   const onNodeDouble = (e: ReactMouseEvent, nodeId: string) => {
     e.stopPropagation();
+    if (readOnly) return;
     setOpenDocId(nodeId);
     setSelected(nodeId);
   };
@@ -180,7 +182,7 @@ export function Canvas() {
   const onNodeResizeDown = (e: ReactMouseEvent, nodeId: string) => {
     e.stopPropagation();
     e.preventDefault();
-    if (tool !== "select") return;
+    if (readOnly || tool !== "select") return;
     const node = nodes.find((n) => n.id === nodeId);
     if (!node) return;
     setSelected(nodeId);
@@ -197,6 +199,7 @@ export function Canvas() {
   const onPortDown = (e: ReactMouseEvent, nodeId: string, side: PortSide) => {
     e.stopPropagation();
     e.preventDefault();
+    if (readOnly) return;
     const node = nodes.find((n) => n.id === nodeId);
     if (!node) return;
     setTool("connect");
@@ -349,6 +352,7 @@ export function Canvas() {
               isSelected={selectedEdgeId === edge.id}
               onClick={(e) => {
                 e.stopPropagation();
+                if (readOnly) return;
                 if (tool === "delete") {
                   removeEdge(edge.id);
                   return;
@@ -395,7 +399,7 @@ export function Canvas() {
         ))}
       </div>
 
-      {nodes.length === 0 && <EmptyState onCreate={onCreateFirst} />}
+      {nodes.length === 0 && !readOnly && <EmptyState onCreate={onCreateFirst} />}
     </div>
   );
 }
