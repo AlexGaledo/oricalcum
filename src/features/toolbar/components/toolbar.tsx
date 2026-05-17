@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { useCanvasStore, type ToolbarSide } from "@/features/canvas/store/canvas.store";
 import { useNodeStore } from "@/features/nodes/store/node.store";
 import { useThemeStore } from "@/features/themes/store/theme.store";
+import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
 import { SHAPES } from "@/shared/constants/shapes";
 import {
   CursorIcon,
@@ -11,8 +12,10 @@ import {
   LinkIcon,
   TrashIcon,
   SlidersIcon,
+  ShareIcon,
 } from "@/shared/components/icons";
 import { ShapeGlyph } from "@/features/nodes/components/node-shapes";
+import { fetchProject, patchProjectShare } from "@/data/api/endpoints/projects.api";
 import type { ShapeId } from "@/shared/types";
 
 const EDGE_SNAP = 80;
@@ -47,10 +50,54 @@ export function Toolbar() {
   const setToolbarPos = useCanvasStore((s) => s.setToolbarPos);
   const hasNodes = useNodeStore((s) => s.nodes.length > 0);
   const visible = useThemeStore((s) => s.showToolbar && !s.hideAllUi);
+  const activeId = useWorkspacesStore((s) => s.activeId);
 
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
   const grabOffsetRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
   const rootRef = useRef<HTMLDivElement>(null);
+
+  const [shareOpen, setShareOpen] = useState(false);
+  const [isPublic, setIsPublic] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!shareOpen || !activeId) return;
+    fetchProject(activeId)
+      .then((p) => setIsPublic(!!(p as Record<string, unknown>).is_public))
+      .catch(() => {});
+  }, [shareOpen, activeId]);
+
+  useEffect(() => {
+    if (!shareOpen) return;
+    const onDown = (e: globalThis.MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setShareOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [shareOpen]);
+
+  const handleShareToggle = async () => {
+    if (!activeId || shareLoading) return;
+    setShareLoading(true);
+    try {
+      await patchProjectShare(activeId, !isPublic);
+      setIsPublic((v) => !v);
+    } catch {
+      // ignore
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (!activeId) return;
+    navigator.clipboard.writeText(`${window.location.origin}/share/${activeId}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const onShapeDragStart = (e: MouseEvent, shapeId: ShapeId) => {
     e.preventDefault();
@@ -211,6 +258,36 @@ export function Toolbar() {
             Tweaks <kbd>T</kbd>
           </span>
         </button>
+        <button
+          type="button"
+          className="tool-btn"
+          data-active={isPublic ? "1" : "0"}
+          onClick={() => setShareOpen((s) => !s)}
+        >
+          <ShareIcon />
+          <span className="tool-tip">Share</span>
+        </button>
+
+        {shareOpen && (
+          <div className="share-flyout" onClick={(e) => e.stopPropagation()}>
+            <div className="share-flyout-label">// share.access</div>
+            <div className="share-row">
+              <span>Public link</span>
+              <button
+                className={`share-toggle${isPublic ? " on" : ""}`}
+                onClick={handleShareToggle}
+                disabled={shareLoading}
+              >
+                {isPublic ? "on" : "off"}
+              </button>
+            </div>
+            {isPublic && (
+              <button className="share-copy-btn" onClick={handleCopyLink}>
+                {copied ? "// copied" : "// copy link"}
+              </button>
+            )}
+          </div>
+        )}
 
         {shapeMenuOpen && (
           <div className="shape-flyout" onClick={(e) => e.stopPropagation()}>

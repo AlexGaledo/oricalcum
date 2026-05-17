@@ -20,6 +20,8 @@ interface CanvasStore {
   setToolbarSide: (s: ToolbarSide) => void;
   toolbarPos: { x: number; y: number } | null;
   setToolbarPos: (p: { x: number; y: number } | null) => void;
+  aiBarPosX: number | null;
+  setAiBarPosX: (x: number | null) => void;
   fileTreeOpen: boolean;
   setFileTreeOpen: (b: boolean | ((b: boolean) => boolean)) => void;
   setCamera: (cam: Camera | ((c: Camera) => Camera)) => void;
@@ -52,6 +54,8 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
   setToolbarSide: (s) => set({ toolbarSide: s }),
   toolbarPos: null,
   setToolbarPos: (p) => set({ toolbarPos: p }),
+  aiBarPosX: null,
+  setAiBarPosX: (x) => set({ aiBarPosX: x }),
   fileTreeOpen: false,
   setFileTreeOpen: (b) =>
     set((s) => ({
