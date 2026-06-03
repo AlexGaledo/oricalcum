@@ -402,3 +402,18 @@ Migration is complete only when:
 > Prototype defines behavior.
 > Architecture defines longevity.
 > Preserve the first. Upgrade the second.
+
+---
+
+# Current State — Backend Integration (post-migration)
+
+The migration is done and the app is wired to a **FastAPI backend** at `../oricalcum-api`. Read **`BACKEND-API-GUIDE.md`** before touching the data layer — it is the live reference.
+
+Key facts for agents:
+
+* **Backend is source of truth.** `localStorage` (`workspaces.store`) is only an offline cache / first-run seed.
+* **Persistence lives in `features/canvas/hooks/use-persistence.ts`** — hydrates stores on workspace open, then mirrors mutations via **debounced per-entity REST** (create/patch/delete). Camera + project meta also persist.
+* **Wire contract is snake_case.** Map via `features/canvas/utils/entity-mappers.ts`. Node body (rich-text HTML) lives on `node.body` — the `documents` table/endpoints are unused.
+* **Snapshots** = `features/snapshots` (store + `SnapshotsPanel`) over `/projects/:id/snapshots`.
+* **Removed dead code** (do not reintroduce): `data/repositories`, `data/sync` (SyncEngine/OfflineQueue/ConflictResolver), `data/models`, `documents.api.ts`, `/sync` client usage. For real-time collab later, prefer a WebSocket push channel into the existing stores.
+* **Auth**: Supabase JWT set on `apiClient` in `providers/auth-provider.tsx`; 401 → `/login`.

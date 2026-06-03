@@ -30,16 +30,3 @@ export interface PaginatedResponse<T> {
     totalPages: number;
   };
 }
-
-export interface SyncPayload<T> {
-  projectId: string;
-  lastSyncedAt: number | null;
-  entities: T[];
-}
-
-export interface SyncResult<T> {
-  pushed: number;
-  pulled: number;
-  conflicts: T[];
-  serverTime: number;
-}

@@ -1,5 +1,8 @@
-let counter = 0;
 export function uid(prefix: string): string {
-  counter += 1;
-  return `${prefix}_${counter.toString(36).padStart(3, "0")}`;
+  try {
+    return `${prefix}_${crypto.randomUUID()}`;
+  } catch {
+    const fallback = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    return `${prefix}_${fallback}`;
+  }
 }

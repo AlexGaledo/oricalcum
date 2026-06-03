@@ -16,9 +16,10 @@ import {
   VisibilityMenu,
 } from "@/features/toolbar";
 import { AiInputBar } from "@/features/ai-input";
+import { SnapshotsPanel } from "@/features/snapshots";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
-import { useAutoSave } from "@/features/canvas/hooks/use-auto-save";
-import { fetchProject, createProject } from "@/data/api/endpoints/projects.api";
+import { usePersistence } from "@/features/canvas/hooks/use-persistence";
+import { fetchProject, createProject, patchProject } from "@/data/api/endpoints/projects.api";
 import { ApiError } from "@/data/api/api.types";
 import { supabase } from "@/lib/supabase";
 
@@ -62,7 +63,19 @@ export default function WorkspacePage() {
       });
   }, [authed, activeId, workspace?.name, workspace?.description]);
 
-  useAutoSave(projectSynced ? activeId : null);
+  usePersistence(projectSynced ? activeId : null);
+
+  // push workspace name/description changes to the backend project (debounced)
+  useEffect(() => {
+    if (!projectSynced || !activeId) return;
+    const t = setTimeout(() => {
+      patchProject(activeId, {
+        name: workspace?.name ?? "Untitled",
+        description: workspace?.description ?? "",
+      }).catch(console.error);
+    }, 600);
+    return () => clearTimeout(t);
+  }, [projectSynced, activeId, workspace?.name, workspace?.description]);
 
   if (!authed) return null;
 
@@ -89,6 +102,7 @@ export default function WorkspacePage() {
         <OricalcumTweaks />
         <VisibilityMenu />
         <AiInputBar />
+        <SnapshotsPanel />
       </div>
     </>
   );
