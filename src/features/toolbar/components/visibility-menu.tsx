@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useThemeStore } from "@/features/themes/store/theme.store";
+import { useCanvasStore } from "@/features/canvas/store/canvas.store";
 import { EyeIcon, EyeOffIcon } from "@/shared/components/icons";
 
 export function VisibilityMenu() {
   const t = useThemeStore();
+  const openDocId = useCanvasStore((s) => s.openDocId);
   const [open, setOpen] = useState(false);
   const popRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -27,7 +29,7 @@ export function VisibilityMenu() {
   const allHidden = t.hideAllUi;
 
   return (
-    <>
+    <div className={`vis-group${openDocId ? " vis-group--shifted" : ""}`}>
       <button
         ref={btnRef}
         type="button"
@@ -69,7 +71,7 @@ export function VisibilityMenu() {
           />
         </div>
       )}
-    </>
+    </div>
   );
 }
 

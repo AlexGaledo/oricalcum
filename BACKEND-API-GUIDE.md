@@ -159,6 +159,107 @@ NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
 
 Driven by the `features/snapshots` store + `SnapshotsPanel`. Restore replaces store state; `usePersistence` diffs it and pushes the converging create/patch/delete calls.
 
+### Storage (S3) — `data/api/endpoints/storage.api.ts`
+
+Per-workspace files in S3, sandboxed under the `workspaces/{project_id}/` key prefix.
+Bytes move **browser ↔ S3 directly via presigned URLs**; the API only mints URLs and does
+metadata ops. Access = project **owner or collaborator**. Backend holds AWS creds
+(`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET` in `.env`;
+optional `S3_ENDPOINT_URL` for R2/MinIO). Limits: 50 MB/file, MIME allowlist.
+
+| Method | Path | Client fn |
+|--------|------|-----------|
+| `GET` | `/projects/:pid/storage?prefix=` | `listStorage` (one folder level: `folders[]` + `files[]`) |
+| `POST` | `/projects/:pid/storage/presign-upload` | `presignUpload` → PUT URL; browser PUTs bytes |
+| `GET` | `/projects/:pid/storage/presign-download?path=` | `presignDownload` (GET URL) |
+| `DELETE` | `/projects/:pid/storage?path=` | `deleteStorageItem` (path ending `/` = whole folder) |
+| `POST` | `/projects/:pid/storage/folder` | `createFolder` (zero-byte marker) |
+| `POST` | `/projects/:pid/storage/move` | `moveStorageItem` (copy+delete; file or folder) |
+| `GET` | `/projects/:pid/storage/media?path=` | **auth-free 307 redirect** to a fresh presigned GET |
+
+The `media` endpoint is the **durable `src`** for media embedded in node bodies / avatars
+(an `<img>` can't send a Bearer token). Bucket stays private; safety relies on the
+**uuid-prefixed keys** that `uploadMedia()` (storage.api) generates. Helpers:
+`mediaUrl(pid, path)` builds the stable URL; `uploadMedia(pid, file, folder)` does presign→PUT→return URL.
+
+UI: `features/storage` (`StorageBrowser` at hub route `/workspace/:id/storage`). All node/document
+uploads land under `uploded-node-media/`: editor images → `uploded-node-media/`, node attachments
+→ `uploded-node-media/{nodeId}/` (listed by prefix, no node-schema change). Workspace avatar →
+`_avatar/` (URL stored on `project.settings.avatar`).
+
+#### One-time AWS setup (`../oricalcum-api/infra/`)
+
+Two policies live in `infra/`. Apply both once with an **admin** AWS login — the app's own
+IAM user (`oricalcum-s3`) cannot grant itself permissions.
+
+**1. IAM policy — `s3-iam-policy.json`** (attach as an inline policy to user `oricalcum-s3`):
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    { "Sid": "OricalcumObjectRW", "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::oricalcum-bucket/*" },
+    { "Sid": "OricalcumListBucket", "Effect": "Allow",
+      "Action": "s3:ListBucket", "Resource": "arn:aws:s3:::oricalcum-bucket" }
+  ]
+}
+```
+
+What each line does and **why the API needs it**:
+
+| Action | Resource | Why |
+|--------|----------|-----|
+| `s3:PutObject` | `bucket/*` (objects) | presigned upload URLs; folder markers (`put_empty`); copy-on-move |
+| `s3:GetObject` | `bucket/*` | presigned download/preview URLs; the `media` redirect; copy source on move |
+| `s3:DeleteObject` | `bucket/*` | delete file/folder; second half of move (copy → delete) |
+| `s3:ListBucket` | `bucket` (the bucket itself) | `list_objects_v2` for the browser. **Note the resource is the bucket ARN, not `/*`** — `ListBucket` is a bucket-level action; putting it on `/*` silently fails with AccessDenied |
+
+Least-privilege: scoped to this one bucket, only the five actions used. No `s3:*`, no other buckets.
+Without it every call returns `403 AccessDenied` (this was the initial blocker).
+
+**2. Bucket CORS — `s3-cors.json`** (bucket → Permissions → CORS):
+
+```json
+[
+  { "AllowedOrigins": ["http://localhost:3000"],
+    "AllowedMethods": ["PUT", "GET"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3000 }
+]
+```
+
+Why CORS is needed at all: uploads/downloads go **browser → S3 directly** (the whole point of
+presigned URLs — bytes never touch the API). That's a cross-origin request from the Next.js app
+to `s3.amazonaws.com`, so the bucket must opt in:
+
+- `AllowedMethods: PUT` — presigned upload (`uploadToPresigned` does `fetch/XHR PUT`).
+- `AllowedMethods: GET` — presigned download + image/PDF preview fetches.
+- `AllowedOrigins` — the frontend origin(s). Add the prod domain when deploying:
+  `["http://localhost:3000", "https://yourdomain.com"]`.
+- `AllowedHeaders: *` — lets the signed `Content-Type` (and any `x-amz-*`) headers through on PUT.
+- `ExposeHeaders: ETag` — so the browser can read the upload's ETag from the response.
+- `MaxAgeSeconds` — caches the preflight `OPTIONS` so the browser doesn't re-ask every upload.
+
+Without CORS the PUT/GET still reach S3 but the browser blocks the JS from reading the result —
+uploads appear to hang/fail in devtools with a CORS error.
+
+> Note: the `media` redirect endpoint is server-issued (302 from the API, not a cross-origin
+> JS fetch), so an `<img src>` pointing at it works regardless of CORS. CORS only matters for the
+> direct presigned PUT/GET the browser makes itself.
+
+Apply via CLI:
+
+```bash
+cd ../oricalcum-api
+aws iam put-user-policy --user-name oricalcum-s3 --policy-name oricalcum-s3-rw \
+  --policy-document file://infra/s3-iam-policy.json --profile admin
+aws s3api put-bucket-cors --bucket oricalcum-bucket \
+  --cors-configuration file://infra/s3-cors.json --profile admin
+```
+
 ### Public (read-only share) — used by `app/share/[projectId]`
 
 `GET /public/projects/:id`, `/public/projects/:id/nodes`, `/public/projects/:id/edges`. No auth; returns data only when `is_public` is true.

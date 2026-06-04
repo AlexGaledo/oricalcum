@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
 import { WorkspaceCard } from "@/features/workspaces/components/workspace-card";
@@ -17,7 +17,7 @@ const TEMPLATES = [
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { workspaces, createWorkspace, deleteWorkspace, updateMeta, openWorkspace } = useWorkspacesStore();
+  const { workspaces, createWorkspace, deleteWorkspace, updateMeta, openWorkspace, fetchWorkspaces, isLoading, isOffline } = useWorkspacesStore();
 
   const navGuard = useRef(false);
   const [navOpen, setNavOpen] = useState(true);
@@ -28,12 +28,16 @@ export default function DashboardPage() {
   const [newColor, setNewColor] = useState(ACCENT_SWATCHES[0]);
   const [transitioning, setTransitioning] = useState(false);
 
+  useEffect(() => {
+    fetchWorkspaces();
+  }, [fetchWorkspaces]);
+
   const sorted = [...workspaces].sort((a, b) => b.updatedAt - a.updatedAt);
   const recent = sorted.slice(0, 5);
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!newName.trim()) return;
-    createWorkspace(newName.trim(), newDesc.trim(), newColor);
+    await createWorkspace(newName.trim(), newDesc.trim(), newColor);
     setModalOpen(false);
     setNewName("");
     setNewDesc("");
@@ -100,10 +104,18 @@ export default function DashboardPage() {
         </div>
 
         <div className="dash-body">
+          {isOffline && (
+            <div className="dash-offline-banner">
+              <span>●</span> Offline — changes will sync when you reconnect
+            </div>
+          )}
+          {isLoading && displayed.length === 0 && (
+            <div className="dash-empty">Loading workspaces…</div>
+          )}
           {(section === "workspaces" || section === "recent") && (
             <>
               <div className="dash-section-title">{section === "recent" ? "Recently opened" : "All workspaces"}</div>
-              {displayed.length === 0 ? (
+              {displayed.length === 0 && !isLoading ? (
                 <div className="dash-empty">No workspaces yet. Create one to get started.</div>
               ) : (
                 <div className="ws-grid">
@@ -129,8 +141,8 @@ export default function DashboardPage() {
                   <div
                     key={t.id}
                     className="ws-card"
-                    onClick={() => {
-                      createWorkspace(t.name, t.description, ACCENT_SWATCHES[0]);
+                    onClick={async () => {
+                      await createWorkspace(t.name, t.description, ACCENT_SWATCHES[0]);
                     }}
                     style={{ cursor: "pointer" }}
                   >

@@ -9,6 +9,7 @@ import {
   type SecretMeta,
 } from "@/data/api/endpoints/secrets.api";
 import { ApiError } from "@/data/api/api.types";
+import { uploadMedia } from "@/data/api/endpoints/storage.api";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
 import { ACCENT_SWATCHES } from "@/config/theme.config";
 
@@ -27,6 +28,20 @@ export function SettingsPanel({ workspaceId }: Props) {
   const [newValue, setNewValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+
+  const handleAvatar = async (file: File) => {
+    setAvatarBusy(true);
+    setError(null);
+    try {
+      const url = await uploadMedia(workspaceId, file, "_avatar");
+      await updateMeta(workspaceId, { avatar: url });
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Failed to upload avatar");
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
 
   const load = useCallback(() => {
     setLoading(true);
@@ -94,6 +109,41 @@ export function SettingsPanel({ workspaceId }: Props) {
       {/* Workspace meta */}
       <div className="hub-label">Workspace</div>
       <div className="settings-meta">
+          <label>Avatar</label>
+          <div className="settings-avatar">
+            <span className="settings-avatar-preview" aria-hidden>
+              {workspace?.avatar ? (
+                <img src={workspace.avatar} alt="" />
+              ) : (
+                <span className="settings-avatar-fallback">
+                  {(workspace?.name ?? "W").slice(0, 1).toUpperCase()}
+                </span>
+              )}
+            </span>
+            <label className="hub-btn settings-avatar-btn">
+              {avatarBusy ? "Uploading…" : workspace?.avatar ? "Change" : "Upload"}
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                disabled={avatarBusy}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleAvatar(f);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            {workspace?.avatar && (
+              <button
+                type="button"
+                className="secret-action danger"
+                onClick={() => updateMeta(workspaceId, { avatar: undefined })}
+              >
+                Remove
+              </button>
+            )}
+          </div>
           <label htmlFor="ws-name-edit">Name</label>
           <input
             id="ws-name-edit"

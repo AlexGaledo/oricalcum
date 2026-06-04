@@ -6,6 +6,7 @@ import { useCanvasStore } from "@/features/canvas/store/canvas.store";
 import { useThemeStore } from "@/features/themes/store/theme.store";
 import { ThemePicker } from "@/features/themes/components/theme-picker";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
+import { Breadcrumbs } from "@/features/navigation/components/breadcrumbs";
 import { APP } from "@/config/app.config";
 
 export function Topbar() {
@@ -69,7 +70,11 @@ export function Topbar() {
               <circle cx="6" cy="6" r="1.4" fill="currentColor" />
             </svg>
           </button>
-          <div className="brand-name">{activeWorkspace?.name ?? APP.name}</div>
+          {activeId ? (
+            <Breadcrumbs workspaceId={activeId} />
+          ) : (
+            <div className="brand-name">{APP.name}</div>
+          )}
           <button
             type="button"
             className="iconbtn-pill"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { useCanvasStore } from "@/features/canvas/store/canvas.store";
 import { useNodeStore } from "@/features/nodes/store/node.store";
 import { useEdgeStore } from "@/features/edges/store/edge.store";
@@ -13,6 +14,7 @@ import { ACCENT_SWATCHES } from "@/config/theme.config";
 import type { Editor } from "@tiptap/react";
 import { RichEditor } from "./rich-editor";
 import { EditorToolbar } from "./editor-toolbar";
+import { NodeAttachments } from "./node-attachments";
 
 const fmtTime = (ts?: number) => {
   if (!ts) return "—";
@@ -27,11 +29,12 @@ interface DocBodyProps {
   setOpenDocId: (id: string | null) => void;
   setDocExpanded: (b: boolean) => void;
   expanded: boolean;
+  projectId: string;
 }
 
 function DocBody({
   display, openDocId, updateNode, handleDelete,
-  setOpenDocId, setDocExpanded, expanded,
+  setOpenDocId, setDocExpanded, expanded, projectId,
 }: DocBodyProps) {
   const [editor, setEditor] = useState<Editor | null>(null);
   const [charCount, setCharCount] = useState(0);
@@ -196,13 +199,14 @@ function DocBody({
             </div>
           )}
         </div>
-        <EditorToolbar editor={editor} />
+        <EditorToolbar editor={editor} projectId={projectId} />
         <RichEditor
           key={display.id}
           value={display.body || ""}
           onChange={handleBodyChange}
           onEditorReady={handleEditorReady}
         />
+        {projectId && openDocId && <NodeAttachments projectId={projectId} nodeId={openDocId} />}
       </div>
       <div className="docpanel-foot">
         <span className="doc-shape-tag">{display.shape}</span>
@@ -213,6 +217,7 @@ function DocBody({
 }
 
 export function EditorPanel() {
+  const { id: projectId } = useParams<{ id: string }>();
   const openDocId = useCanvasStore((s) => s.openDocId);
   const setOpenDocId = useCanvasStore((s) => s.setOpenDocId);
   const docExpanded = useCanvasStore((s) => s.docExpanded);
@@ -248,6 +253,7 @@ export function EditorPanel() {
         handleDelete,
         setOpenDocId,
         setDocExpanded,
+        projectId,
       }
     : null;
 

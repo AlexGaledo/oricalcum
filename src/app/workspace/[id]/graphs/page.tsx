@@ -21,7 +21,7 @@ import { CalendarView } from "@/features/calendar";
 import { AssistantPanel } from "@/features/assistant";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
 import { usePersistence } from "@/features/canvas/hooks/use-persistence";
-import { fetchProject, createProject, patchProject } from "@/data/api/endpoints/projects.api";
+import { fetchProject, createProject } from "@/data/api/endpoints/projects.api";
 import { ApiError } from "@/data/api/api.types";
 import { supabase } from "@/lib/supabase";
 
@@ -43,7 +43,7 @@ export default function GraphsCanvasPage() {
     });
   }, [router]);
 
-  // sync workspace to backend as a project
+  // sync workspace to backend as a project (seed if missing)
   useEffect(() => {
     if (!authed || !id) return;
     setProjectSynced(false);
@@ -66,18 +66,6 @@ export default function GraphsCanvasPage() {
   }, [authed, id, workspace?.name, workspace?.description]);
 
   usePersistence(projectSynced ? id : null);
-
-  // push workspace name/description changes to the backend project (debounced)
-  useEffect(() => {
-    if (!projectSynced || !id) return;
-    const t = setTimeout(() => {
-      patchProject(id, {
-        name: workspace?.name ?? "Untitled",
-        description: workspace?.description ?? "",
-      }).catch(console.error);
-    }, 600);
-    return () => clearTimeout(t);
-  }, [projectSynced, id, workspace?.name, workspace?.description]);
 
   if (!authed) return null;
 

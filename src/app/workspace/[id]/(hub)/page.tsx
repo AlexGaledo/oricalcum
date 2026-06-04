@@ -2,10 +2,11 @@
 
 import { useRouter, useParams } from "next/navigation";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
-import { GridIcon, PeopleIcon, GearIcon } from "@/shared/components/icons";
+import { GridIcon, PeopleIcon, GearIcon, FolderIcon } from "@/shared/components/icons";
 
 const MODULES = [
   { key: "graphs", icon: GridIcon, name: "Graphs", desc: "Open the canvas and shape your nodes." },
+  { key: "storage", icon: FolderIcon, name: "Storage", desc: "Files & folders for this workspace, backed by S3." },
   { key: "people", icon: PeopleIcon, name: "People", desc: "Manage collaborators on this workspace." },
   { key: "settings", icon: GearIcon, name: "Settings", desc: "Secrets, environment variables & metadata." },
 ] as const;

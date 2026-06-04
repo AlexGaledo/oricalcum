@@ -84,6 +84,10 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
       const events = data.map(eventFromBackend);
       set({ events });
       return events;
+    } catch (err) {
+      console.error("Failed to fetch calendar events:", err);
+      // Keep existing events as offline fallback
+      return get().events;
     } finally {
       set({ isLoading: false });
     }

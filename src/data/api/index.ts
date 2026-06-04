@@ -9,3 +9,5 @@ export * from "./endpoints/collaborators.api";
 export * from "./endpoints/secrets.api";
 export * from "./endpoints/calendar-events.api";
 export * from "./endpoints/chat.api";
+export * from "./endpoints/documents.api";
+export * from "./endpoints/storage.api";

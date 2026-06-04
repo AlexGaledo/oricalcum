@@ -9,7 +9,8 @@ import Highlight from "@tiptap/extension-highlight";
 import { TextStyle } from "@tiptap/extension-text-style";
 import { Color } from "@tiptap/extension-color";
 import Placeholder from "@tiptap/extension-placeholder";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import { looksLikeMarkdown, renderMarkdown } from "@/shared/lib/markdown";
 
 interface RichEditorProps {
   value: string;
@@ -19,6 +20,12 @@ interface RichEditorProps {
 }
 
 export function RichEditor({ value, onChange, onEditorReady, placeholder }: RichEditorProps) {
+  const initialContent = useMemo(() => {
+    if (!value) return "";
+    if (looksLikeMarkdown(value)) return renderMarkdown(value);
+    return value;
+  }, []);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
@@ -30,11 +37,15 @@ export function RichEditor({ value, onChange, onEditorReady, placeholder }: Rich
       Color,
       Placeholder.configure({ placeholder: placeholder ?? "markdown / notes / spec / scratch ..." }),
     ],
-    content: value || "",
+    content: initialContent,
     immediatelyRender: false,
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
     editorProps: {
       attributes: { class: "prose-doc" },
+      transformPastedText(text) {
+        if (looksLikeMarkdown(text)) return renderMarkdown(text);
+        return text;
+      },
     },
   });
 
@@ -46,7 +57,8 @@ export function RichEditor({ value, onChange, onEditorReady, placeholder }: Rich
     if (!editor) return;
     const current = editor.getHTML();
     if (value !== current) {
-      editor.commands.setContent(value || "", { emitUpdate: false });
+      const content = looksLikeMarkdown(value) ? renderMarkdown(value) : (value || "");
+      editor.commands.setContent(content, { emitUpdate: false });
     }
   }, [value, editor]);
 

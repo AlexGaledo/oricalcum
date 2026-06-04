@@ -3,15 +3,17 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Editor } from "@tiptap/react";
 import { cn } from "@/shared/lib/cn";
+import { uploadMedia } from "@/data/api/endpoints/storage.api";
 
 interface ToolbarProps {
   editor: Editor | null;
+  projectId?: string;
 }
 
 const HIGHLIGHT_COLORS = ["#fde68a", "#fca5a5", "#a7f3d0", "#bfdbfe", "#ddd6fe", "#fbcfe8"];
 const TEXT_COLORS = ["#ffffff", "#10A37F", "#8B5CF6", "#06B6D4", "#F59E0B", "#EF4444"];
 
-export function EditorToolbar({ editor }: ToolbarProps) {
+export function EditorToolbar({ editor, projectId }: ToolbarProps) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkValue, setLinkValue] = useState("");
@@ -65,7 +67,18 @@ export function EditorToolbar({ editor }: ToolbarProps) {
     editor.chain().focus().setImage({ src: url }).run();
   };
 
-  const handleImageFile = (file: File) => {
+  const handleImageFile = async (file: File) => {
+    // Upload to S3 and embed a durable media URL instead of bloating the node
+    // body with a base64 data URL. Falls back to base64 if no workspace context.
+    if (projectId) {
+      try {
+        const src = await uploadMedia(projectId, file, "uploded-node-media");
+        editor.chain().focus().setImage({ src }).run();
+        return;
+      } catch (err) {
+        console.error("Image upload failed, falling back to inline:", err);
+      }
+    }
     const reader = new FileReader();
     reader.onload = () => {
       const src = reader.result;
