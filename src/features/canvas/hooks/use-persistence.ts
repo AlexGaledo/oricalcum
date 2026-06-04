@@ -7,6 +7,7 @@ import { useCanvasStore } from "@/features/canvas/store/canvas.store";
 import { fetchNodes, createNode, patchNode, deleteNode } from "@/data/api/endpoints/nodes.api";
 import { fetchEdges, createEdge, deleteEdge } from "@/data/api/endpoints/edges.api";
 import { fetchProject, patchProject } from "@/data/api/endpoints/projects.api";
+import { prefetchCache } from "@/shared/lib/prefetch-cache";
 import {
   nodeToBackend,
   nodeToBackendPatch,
@@ -105,11 +106,24 @@ export function usePersistence(projectId: string | null) {
     // ---- hydrate ----
     (async () => {
       try {
-        const [rawNodes, rawEdges, project] = await Promise.all([
-          fetchNodes(projectId),
-          fetchEdges(projectId),
-          fetchProject(projectId),
-        ]);
+        let rawNodes: Record<string, unknown>[];
+        let rawEdges: Record<string, unknown>[];
+        let project: Record<string, unknown>;
+
+        const cached = prefetchCache.get(projectId);
+        if (cached) {
+          rawNodes = cached.nodes;
+          rawEdges = cached.edges;
+          project = cached.project;
+          prefetchCache.delete(projectId);
+        } else {
+          [rawNodes, rawEdges, project] = await Promise.all([
+            fetchNodes(projectId),
+            fetchEdges(projectId),
+            fetchProject(projectId),
+          ]);
+        }
+
         if (disposed) return;
 
         const camera = (project as { camera?: Camera }).camera;

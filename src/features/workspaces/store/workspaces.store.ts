@@ -33,6 +33,8 @@ interface WorkspacesStore {
   createWorkspace: (name: string, description?: string, accentColor?: string) => void;
   deleteWorkspace: (id: string) => void;
   updateMeta: (id: string, patch: Partial<Pick<WorkspaceRecord, "name" | "description" | "accentColor">>) => void;
+  /** Save the current canvas into its record, then hydrate stores with the target workspace. No navigation. */
+  loadWorkspace: (id: string) => void;
   openWorkspace: (id: string, router: AppRouterInstance) => void;
   saveCurrentSnapshot: () => void;
 }
@@ -75,10 +77,11 @@ export const useWorkspacesStore = create<WorkspacesStore>()(
         }));
       },
 
-      openWorkspace: (id, router) => {
+      loadWorkspace: (id) => {
         const { activeId, workspaces } = get();
+        if (activeId === id) return;
 
-        // save current canvas into active workspace
+        // save current canvas into the previously-active workspace
         if (activeId) {
           const nodes = useNodeStore.getState().nodes;
           const edges = useEdgeStore.getState().edges;
@@ -92,7 +95,7 @@ export const useWorkspacesStore = create<WorkspacesStore>()(
           }));
         }
 
-        // load target workspace
+        // load target workspace into the canvas stores (local seed; backend hydrate follows)
         const target = workspaces.find((w) => w.id === id);
         useNodeStore.setState({ nodes: target?.nodes ?? [], selectedId: null });
         useEdgeStore.setState({ edges: target?.edges ?? [], selectedEdgeId: null });
@@ -102,7 +105,11 @@ export const useWorkspacesStore = create<WorkspacesStore>()(
         });
 
         set({ activeId: id });
-        router.push("/workspace");
+      },
+
+      openWorkspace: (id, router) => {
+        get().loadWorkspace(id);
+        router.push(`/workspace/${id}`);
       },
 
       saveCurrentSnapshot: () => {

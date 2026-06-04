@@ -21,6 +21,23 @@ export function SnapshotsPanel() {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleHover = () => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    if (activeId && items.length === 0 && !loading) {
+      hoverTimer.current = setTimeout(() => {
+        refresh(activeId);
+      }, 200);
+    }
+  };
+
+  const handleHoverEnd = () => {
+    if (hoverTimer.current) {
+      clearTimeout(hoverTimer.current);
+      hoverTimer.current = null;
+    }
+  };
 
   useEffect(() => {
     if (open && activeId) refresh(activeId);
@@ -67,6 +84,8 @@ export function SnapshotsPanel() {
         className="iconbtn-pill"
         data-active={open ? "1" : "0"}
         onClick={() => setOpen((v) => !v)}
+        onMouseEnter={handleHover}
+        onMouseLeave={handleHoverEnd}
         title="Snapshots / history"
       >
         <span className="lbl">history</span>

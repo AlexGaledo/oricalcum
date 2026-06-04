@@ -25,6 +25,13 @@ export function FileExplorer() {
   const updateMeta = useWorkspacesStore((s) => s.updateMeta);
   const setFileTreeOpen = useCanvasStore((s) => s.setFileTreeOpen);
   const activeWorkspace = workspaces.find((w) => w.id === activeId);
+  const prefetchCalendar = useCalendarStore((s) => s.fetchEvents);
+
+  useEffect(() => {
+    if (open && activeId) {
+      prefetchCalendar(activeId);
+    }
+  }, [open, activeId, prefetchCalendar]);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
@@ -43,12 +50,12 @@ export function FileExplorer() {
 
   const roots = tree.filter((n) => n.parentId === null);
 
-  const handleDashboard = () => {
+  const handleBackToHub = () => {
     if (navGuard.current) return;
     navGuard.current = true;
     setTransitioning(true);
     saveCurrentSnapshot();
-    router.push("/dashboard");
+    router.push(`/workspace/${activeId}`);
   };
 
   return (
@@ -144,12 +151,12 @@ export function FileExplorer() {
         <button
           type="button"
           className="fe-footer-btn"
-          onClick={handleDashboard}
+          onClick={handleBackToHub}
         >
           <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 7h8M7 3l4 4-4 4" />
           </svg>
-          Go to Dashboard
+          Back to workspace hub
         </button>
       </div>
     </div>
@@ -160,14 +167,11 @@ export function FileExplorer() {
 function ToolsSection() {
   const [collapsed, setCollapsed] = useState(false);
   const openCalendar = useCalendarStore((s) => s.openCalendar);
-  const fetchEvents = useCalendarStore((s) => s.fetchEvents);
-  const activeId = useWorkspacesStore((s) => s.activeId);
   const setFileTreeOpen = useCanvasStore((s) => s.setFileTreeOpen);
 
   const handleCalendarClick = () => {
     setFileTreeOpen(false);
     openCalendar();
-    if (activeId) fetchEvents(activeId);
   };
 
   return (

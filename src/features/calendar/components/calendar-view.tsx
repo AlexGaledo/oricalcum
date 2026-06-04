@@ -20,8 +20,10 @@ export function CalendarView() {
   useEffect(() => {
     if (!isOpen || !activeId || fetchedRef.current) return;
     fetchedRef.current = true;
-    fetchEvents(activeId);
-  }, [isOpen, activeId, fetchEvents]);
+    if (events.length === 0) {
+      fetchEvents(activeId);
+    }
+  }, [isOpen, activeId, fetchEvents, events.length]);
 
   useEffect(() => {
     if (!isOpen) {

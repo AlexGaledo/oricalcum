@@ -130,3 +130,37 @@ export function ShareIcon(props: IconProps) {
     </svg>
   );
 }
+export function GridIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="4" y="4" width="7" height="7" rx="1.5" />
+      <rect x="13" y="4" width="7" height="7" rx="1.5" />
+      <rect x="4" y="13" width="7" height="7" rx="1.5" />
+      <rect x="13" y="13" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
+export function PeopleIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="8.5" cy="8" r="3" />
+      <path d="M3 20c0-3.3 2.5-5.5 5.5-5.5S14 16.7 14 20" />
+      <path d="M15.5 5.2a3 3 0 0 1 0 5.6M16 14.6c2.8.3 5 2.6 5 5.4" />
+    </svg>
+  );
+}
+export function GearIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="12" r="3.2" />
+      <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.1 5.1l2.1 2.1M16.8 16.8l2.1 2.1M5.1 18.9l2.1-2.1M16.8 7.2l2.1-2.1" />
+    </svg>
+  );
+}
+export function BackIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M14 5 L7 12 L14 19" />
+    </svg>
+  );
+}

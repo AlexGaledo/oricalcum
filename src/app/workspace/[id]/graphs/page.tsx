@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Canvas, Minimap } from "@/features/canvas";
 import { SpawnGhost } from "@/features/nodes";
 import { EditorPanel } from "@/features/documents";
@@ -25,10 +25,10 @@ import { fetchProject, createProject, patchProject } from "@/data/api/endpoints/
 import { ApiError } from "@/data/api/api.types";
 import { supabase } from "@/lib/supabase";
 
-export default function WorkspacePage() {
+export default function GraphsCanvasPage() {
   const router = useRouter();
-  const activeId = useWorkspacesStore((s) => s.activeId);
-  const workspace = useWorkspacesStore((s) => s.workspaces.find((w) => w.id === s.activeId));
+  const { id } = useParams<{ id: string }>();
+  const workspace = useWorkspacesStore((s) => s.workspaces.find((w) => w.id === id));
   const [authed, setAuthed] = useState(false);
   const [projectSynced, setProjectSynced] = useState(false);
 
@@ -45,15 +45,15 @@ export default function WorkspacePage() {
 
   // sync workspace to backend as a project
   useEffect(() => {
-    if (!authed || !activeId) return;
+    if (!authed || !id) return;
     setProjectSynced(false);
 
-    fetchProject(activeId)
+    fetchProject(id)
       .then(() => setProjectSynced(true))
       .catch((err: unknown) => {
         if (err instanceof ApiError && err.status === 404) {
           createProject({
-            id: activeId,
+            id,
             name: workspace?.name ?? "Untitled",
             description: workspace?.description ?? "",
           })
@@ -63,21 +63,21 @@ export default function WorkspacePage() {
           console.error("Failed to sync project:", err);
         }
       });
-  }, [authed, activeId, workspace?.name, workspace?.description]);
+  }, [authed, id, workspace?.name, workspace?.description]);
 
-  usePersistence(projectSynced ? activeId : null);
+  usePersistence(projectSynced ? id : null);
 
   // push workspace name/description changes to the backend project (debounced)
   useEffect(() => {
-    if (!projectSynced || !activeId) return;
+    if (!projectSynced || !id) return;
     const t = setTimeout(() => {
-      patchProject(activeId, {
+      patchProject(id, {
         name: workspace?.name ?? "Untitled",
         description: workspace?.description ?? "",
       }).catch(console.error);
     }, 600);
     return () => clearTimeout(t);
-  }, [projectSynced, activeId, workspace?.name, workspace?.description]);
+  }, [projectSynced, id, workspace?.name, workspace?.description]);
 
   if (!authed) return null;
 

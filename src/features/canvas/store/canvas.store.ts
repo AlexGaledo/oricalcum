@@ -56,7 +56,7 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
   setToolbarPos: (p) => set({ toolbarPos: p }),
   aiBarPosX: null,
   setAiBarPosX: (x) => set({ aiBarPosX: x }),
-  fileTreeOpen: false,
+  fileTreeOpen: true,
   setFileTreeOpen: (b) =>
     set((s) => ({
       fileTreeOpen: typeof b === "function" ? b(s.fileTreeOpen) : b,
