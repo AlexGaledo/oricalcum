@@ -7,6 +7,7 @@ import { SpawnGhost } from "@/features/nodes";
 import { EditorPanel } from "@/features/documents";
 import { FileExplorer } from "@/features/files";
 import { LoadingScreen } from "@/shared/components/ui/loading-screen";
+import { ContextMenu } from "@/shared/components/ui/context-menu";
 import {
   Topbar,
   Toolbar,
@@ -17,6 +18,7 @@ import {
 } from "@/features/toolbar";
 import { AiInputBar } from "@/features/ai-input";
 import { SnapshotsPanel } from "@/features/snapshots";
+import { CalendarView } from "@/features/calendar";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
 import { usePersistence } from "@/features/canvas/hooks/use-persistence";
 import { fetchProject, createProject, patchProject } from "@/data/api/endpoints/projects.api";
@@ -103,7 +105,9 @@ export default function WorkspacePage() {
         <VisibilityMenu />
         <AiInputBar />
         <SnapshotsPanel />
+        <CalendarView />
       </div>
+      <ContextMenu />
     </>
   );
 }

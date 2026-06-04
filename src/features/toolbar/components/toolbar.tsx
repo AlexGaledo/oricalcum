@@ -15,6 +15,7 @@ import {
   ShareIcon,
 } from "@/shared/components/icons";
 import { ShapeGlyph } from "@/features/nodes/components/node-shapes";
+import { useContextMenuStore } from "@/shared/components/ui/context-menu.store";
 import { fetchProject, patchProjectShare } from "@/data/api/endpoints/projects.api";
 import type { ShapeId } from "@/shared/types";
 
@@ -51,6 +52,32 @@ export function Toolbar() {
   const hasNodes = useNodeStore((s) => s.nodes.length > 0);
   const visible = useThemeStore((s) => s.showToolbar && !s.hideAllUi);
   const activeId = useWorkspacesStore((s) => s.activeId);
+  const openMenu = useContextMenuStore((s) => s.open);
+
+  const onToolbarContextMenu = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const sides: ToolbarSide[] = ["left", "right", "top", "bottom"];
+    openMenu(e.clientX, e.clientY, [
+      ...sides.map((s) => ({
+        kind: "checkbox" as const,
+        id: `dock-${s}`,
+        label: `Dock ${s}`,
+        checked: !toolbarPos && toolbarSide === s,
+        onSelect: () => {
+          setToolbarSide(s);
+          setToolbarPos(null);
+        },
+      })),
+      { kind: "separator", id: "sep" },
+      {
+        kind: "action",
+        id: "reset-pos",
+        label: "Reset position",
+        onSelect: () => setToolbarPos(null),
+      },
+    ]);
+  };
 
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
   const grabOffsetRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
@@ -189,6 +216,7 @@ export function Toolbar() {
         data-side={previewSide}
         data-dragging={ghost ? "1" : "0"}
         style={freeStyle}
+        onContextMenu={onToolbarContextMenu}
       >
         <button
           type="button"

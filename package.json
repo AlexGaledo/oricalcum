@@ -13,6 +13,10 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@fullcalendar/core": "^6.1.20",
+    "@fullcalendar/daygrid": "^6.1.20",
+    "@fullcalendar/interaction": "^6.1.20",
+    "@fullcalendar/timegrid": "^6.1.20",
     "@supabase/supabase-js": "^2.105.4",
     "@tiptap/extension-color": "^3.23.1",
     "@tiptap/extension-highlight": "^3.23.1",

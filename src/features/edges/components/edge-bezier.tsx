@@ -15,6 +15,7 @@ interface EdgeBezierProps {
   speed: number;
   isSelected: boolean;
   onClick: (e: MouseEvent) => void;
+  onContextMenu?: (e: MouseEvent) => void;
 }
 
 export function EdgeBezier({
@@ -26,6 +27,7 @@ export function EdgeBezier({
   speed,
   isSelected,
   onClick,
+  onContextMenu,
 }: EdgeBezierProps) {
   const dur = (110 - speed) / 30;
   const sp = getPortPosition(a, edge.fromPort);
@@ -47,9 +49,10 @@ export function EdgeBezier({
         fill="none"
         className="edge-hit"
         onClick={onClick}
+        onContextMenu={onContextMenu}
         style={{ cursor: "pointer" }}
       />
-      <path className={cls} d={d} style={cssVars} onClick={onClick} />
+      <path className={cls} d={d} style={cssVars} onClick={onClick} onContextMenu={onContextMenu} />
       {animated && style === "orbit" && (
         <circle r="3.5" className="edge-orbit">
           <animateMotion dur={`${dur}s`} repeatCount="indefinite" path={d} rotate="auto" />
