@@ -164,3 +164,11 @@ export function BackIcon(props: IconProps) {
     </svg>
   );
 }
+export function ChatIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 5 h16 a1 1 0 0 1 1 1 v9 a1 1 0 0 1 -1 1 H9 l-4 4 v-4 H4 a1 1 0 0 1 -1 -1 V6 a1 1 0 0 1 1 -1 Z" />
+      <path d="M8 10 h8 M8 13 h5" />
+    </svg>
+  );
+}

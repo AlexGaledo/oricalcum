@@ -3,8 +3,9 @@
 import { useRef, useEffect, useState, useCallback, type KeyboardEvent, type MouseEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAiInputStore } from "../store/ai-input.store";
-import { useAiSimulator } from "../hooks/use-ai-simulator";
 import { useCanvasStore } from "@/features/canvas";
+import { useAssistantStore } from "@/features/assistant/store/assistant.store";
+import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
 
 function GripIcon() {
   return (
@@ -53,17 +54,22 @@ function DotsLoader() {
 export function AiInputBar() {
   const input = useAiInputStore((s) => s.input);
   const setInput = useAiInputStore((s) => s.setInput);
-  const isProcessing = useAiInputStore((s) => s.isProcessing);
+  const pushHistory = useAiInputStore((s) => s.pushHistory);
   const cycleHistory = useAiInputStore((s) => s.cycleHistory);
   const openDocId = useCanvasStore((s) => s.openDocId);
   const aiBarPosX = useCanvasStore((s) => s.aiBarPosX);
   const setAiBarPosX = useCanvasStore((s) => s.setAiBarPosX);
+  // Drive the bar off the real assistant: stream a turn to the backend agent,
+  // which mutates the canvas server-side (MCP tools) and triggers a reload.
+  const activeId = useWorkspacesStore((s) => s.activeId);
+  const streaming = useAssistantStore((s) => s.streaming);
+  const send = useAssistantStore((s) => s.send);
+  const isProcessing = streaming;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const [focused, setFocused] = useState(false);
   const [ghostX, setGhostX] = useState<number | null>(null);
   const grabOffsetRef = useRef(0);
-  const { submit } = useAiSimulator();
 
   useEffect(() => {
     textareaRef.current?.focus();
@@ -83,8 +89,10 @@ export function AiInputBar() {
   }
 
   function handleSubmit() {
-    if (!input.trim() || isProcessing) return;
-    submit(input);
+    const text = input.trim();
+    if (!text || isProcessing || !activeId) return;
+    pushHistory(text);
+    send(activeId, text);
     setInput("");
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -220,7 +228,7 @@ export function AiInputBar() {
           <div className="ai-bar-inner">
             <div className="ai-processing-row">
               <DotsLoader />
-              <span className="ai-processing-label">generating nodes</span>
+              <span className="ai-processing-label">working…</span>
             </div>
           </div>
         </motion.div>

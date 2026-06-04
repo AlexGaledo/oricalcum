@@ -68,6 +68,36 @@ export class ApiClient {
     return res.data as T;
   }
 
+  /**
+   * POST that returns the raw streaming Response (no JSON parsing, no retry).
+   * For Server-Sent Events endpoints like the workspace assistant chat. The
+   * caller reads `response.body` and handles the SSE frames itself.
+   */
+  async stream(path: string, body?: unknown, signal?: AbortSignal): Promise<Response> {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
+    };
+    if (this.config.authToken) {
+      headers["Authorization"] = `Bearer ${this.config.authToken}`;
+    }
+
+    const res = await fetch(`${this.config.baseUrl}${path}`, {
+      method: "POST",
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal,
+    });
+
+    if (res.status === 401 && this.config.onAuthFailure) {
+      this.config.onAuthFailure();
+    }
+    if (!res.ok || !res.body) {
+      throw new ApiError(`Stream request failed (${res.status})`, res.status, "STREAM");
+    }
+    return res;
+  }
+
   private async request(
     method: string,
     url: string,

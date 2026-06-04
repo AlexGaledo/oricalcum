@@ -17,8 +17,8 @@ import {
   VisibilityMenu,
 } from "@/features/toolbar";
 import { AiInputBar } from "@/features/ai-input";
-import { SnapshotsPanel } from "@/features/snapshots";
 import { CalendarView } from "@/features/calendar";
+import { AssistantPanel } from "@/features/assistant";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
 import { usePersistence } from "@/features/canvas/hooks/use-persistence";
 import { fetchProject, createProject, patchProject } from "@/data/api/endpoints/projects.api";
@@ -104,8 +104,8 @@ export default function GraphsCanvasPage() {
         <OricalcumTweaks />
         <VisibilityMenu />
         <AiInputBar />
-        <SnapshotsPanel />
         <CalendarView />
+        <AssistantPanel />
       </div>
       <ContextMenu />
     </>

@@ -7,3 +7,5 @@ export * from "./endpoints/projects.api";
 export * from "./endpoints/snapshots.api";
 export * from "./endpoints/collaborators.api";
 export * from "./endpoints/secrets.api";
+export * from "./endpoints/calendar-events.api";
+export * from "./endpoints/chat.api";

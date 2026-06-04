@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { GridIcon, PeopleIcon, GearIcon, BackIcon } from "@/shared/components/icons";
+import { GridIcon, PeopleIcon, GearIcon, BackIcon, ChatIcon } from "@/shared/components/icons";
 
-type HubSection = "overview" | "graphs" | "people" | "settings";
+type HubSection = "overview" | "graphs" | "people" | "chatspace" | "settings";
 
 interface Props {
   workspaceId: string;
@@ -14,6 +14,7 @@ interface Props {
 const ITEMS: { section: HubSection; label: string; icon: typeof GridIcon; path: string }[] = [
   { section: "graphs", label: "Graphs", icon: GridIcon, path: "graphs" },
   { section: "people", label: "People", icon: PeopleIcon, path: "people" },
+  { section: "chatspace", label: "AI Chatspace", icon: ChatIcon, path: "chatspace" },
   { section: "settings", label: "Settings", icon: GearIcon, path: "settings" },
 ];
 
@@ -27,9 +28,11 @@ export function HubSidebar({ workspaceId, workspaceName, accentColor }: Props) {
     ? "graphs"
     : pathname.endsWith("/people")
       ? "people"
-      : pathname.endsWith("/settings")
-        ? "settings"
-        : "overview";
+      : pathname.endsWith("/chatspace")
+        ? "chatspace"
+        : pathname.endsWith("/settings")
+          ? "settings"
+          : "overview";
 
   return (
     <nav className="hub-rail" aria-label="Workspace navigation">
