@@ -94,10 +94,16 @@ function workspaceToCreatePayload(ws: WorkspaceRecord) {
 interface WorkspacesStore {
   workspaces: WorkspaceRecord[];
   activeId: string | null;
+  /** User id the cached workspaces belong to — guards against cross-user leakage. */
+  currentUserId: string | null;
   isLoading: boolean;
   error: string | null;
   isOffline: boolean;
 
+  /** Bind the cache to a user; wipes it if a different user than the cached one. */
+  syncUser: (userId: string) => void;
+  /** Clear all cached workspace data (call on sign-out). */
+  clearAll: () => void;
   /** Hydrate from backend, falling back to local cache. */
   fetchWorkspaces: () => Promise<void>;
   createWorkspace: (name: string, description?: string, accentColor?: string) => Promise<void>;
@@ -113,9 +119,19 @@ export const useWorkspacesStore = create<WorkspacesStore>()(
     (set, get) => ({
       workspaces: [],
       activeId: null,
+      currentUserId: null,
       isLoading: false,
       error: null,
       isOffline: false,
+
+      syncUser: (userId) => {
+        if (get().currentUserId === userId) return;
+        // Different (or first) user on this browser — never carry another
+        // user's cached workspaces over.
+        set({ workspaces: [], activeId: null, currentUserId: userId });
+      },
+
+      clearAll: () => set({ workspaces: [], activeId: null, currentUserId: null }),
 
       fetchWorkspaces: async () => {
         set({ isLoading: true, error: null });
@@ -138,7 +154,10 @@ export const useWorkspacesStore = create<WorkspacesStore>()(
           });
         } catch (err) {
           console.error("Failed to fetch workspaces:", err);
+          // Security: when we can't verify ownership with the backend, show
+          // nothing rather than rendering a possibly-stale/foreign cache.
           set({
+            workspaces: [],
             isLoading: false,
             error: err instanceof Error ? err.message : "Failed to load workspaces",
             isOffline: true,
@@ -267,7 +286,11 @@ export const useWorkspacesStore = create<WorkspacesStore>()(
     }),
     {
       name: "oricalcum-workspaces",
-      partialize: (s) => ({ workspaces: s.workspaces, activeId: s.activeId }),
+      partialize: (s) => ({
+        workspaces: s.workspaces,
+        activeId: s.activeId,
+        currentUserId: s.currentUserId,
+      }),
     },
   ),
 );

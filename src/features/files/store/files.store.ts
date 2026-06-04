@@ -18,6 +18,8 @@ interface FilesStore {
   remove: (id: string) => void;
   toggleFolder: (id: string) => void;
   setActiveFile: (id: string) => void;
+  /** Reset to the default empty tree (call on sign-out / user switch). */
+  reset: () => void;
 }
 
 const ROOT_FILE_ID = "f_root_default";
@@ -134,6 +136,13 @@ export const useFilesStore = create<FilesStore>()(
 
     set({ activeFileId: id });
   },
+
+  reset: () =>
+    set({
+      tree: [{ id: ROOT_FILE_ID, kind: "file", name: "untitled", parentId: null }],
+      activeFileId: ROOT_FILE_ID,
+      snapshots: {},
+    }),
     }),
     {
       name: "oricalcum-files",
