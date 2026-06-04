@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
 import { GridIcon, PeopleIcon, GearIcon, FolderIcon } from "@/shared/components/icons";
+import { Skeleton } from "@/shared/components/ui/skeleton";
 
 const MODULES = [
   { key: "graphs", icon: GridIcon, name: "Graphs", desc: "Open the canvas and shape your nodes." },
@@ -15,7 +17,38 @@ export default function WorkspaceOverviewPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const workspace = useWorkspacesStore((s) => s.workspaces.find((w) => w.id === id));
+  const workspacesLoaded = useWorkspacesStore((s) => s.workspaces.length > 0);
+  const fetchWorkspaces = useWorkspacesStore((s) => s.fetchWorkspaces);
   const base = `/workspace/${id}`;
+
+  // Deep-link / refresh: pull workspaces if the store is empty so the hub isn't blank.
+  useEffect(() => {
+    if (!workspacesLoaded) fetchWorkspaces();
+  }, [workspacesLoaded, fetchWorkspaces]);
+
+  if (!workspace) {
+    return (
+      <div className="hub-view">
+        <header className="hub-hero">
+          <div className="hub-eyebrow">ACTIVE SESSION</div>
+          <Skeleton width={280} height={34} radius={8} />
+          <div style={{ height: 10 }} />
+          <Skeleton width={200} height={16} radius={6} />
+        </header>
+        <div className="hub-telemetry">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} width={90} height={56} radius={10} />
+          ))}
+        </div>
+        <div style={{ height: 24 }} />
+        <div className="hub-modules">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} height={130} radius={12} />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const stats = [
     { val: workspace?.nodeCount ?? 0, lbl: "Nodes" },
@@ -25,8 +58,6 @@ export default function WorkspaceOverviewPage() {
 
   return (
     <div className="hub-view">
-      <div className="hub-eyebrow">// WORKSPACE_OVERVIEW</div>
-
       <header className="hub-hero">
         <div className="hub-eyebrow">ACTIVE SESSION</div>
         <h1 className="hub-hero-title">
@@ -55,6 +86,7 @@ export default function WorkspaceOverviewPage() {
             type="button"
             className="hub-module"
             onClick={() => router.push(`${base}/${key}`)}
+            onMouseEnter={() => router.prefetch(`${base}/${key}`)}
             style={{ animationDelay: `${0.14 + i * 0.06}s` }}
           >
             <div className="hub-module-top">

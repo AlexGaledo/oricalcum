@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { uid } from "@/shared/lib/uid";
 import { useCanvasStore } from "@/features/canvas/store/canvas.store";
 import { useNodeStore } from "@/features/nodes/store/node.store";
@@ -44,7 +45,9 @@ function uniqueName(tree: FsNode[], parentId: string | null, base: string): stri
   return `${base}-${i}`;
 }
 
-export const useFilesStore = create<FilesStore>((set, get) => ({
+export const useFilesStore = create<FilesStore>()(
+  persist(
+    (set, get) => ({
   tree: [
     {
       id: ROOT_FILE_ID,
@@ -131,4 +134,13 @@ export const useFilesStore = create<FilesStore>((set, get) => ({
 
     set({ activeFileId: id });
   },
-}));
+    }),
+    {
+      name: "oricalcum-files",
+      // Persist only the tree structure/names — NOT snapshots (node/edge data
+      // lives in the backend and would bloat localStorage). This keeps file
+      // renames across refreshes so the title no longer reverts to "untitled".
+      partialize: (s) => ({ tree: s.tree, activeFileId: s.activeFileId }),
+    },
+  ),
+);

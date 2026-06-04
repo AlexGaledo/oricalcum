@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { streamChat } from "@/data/api/endpoints/chat.api";
 import { useCanvasStore } from "@/features/canvas";
+import { useCalendarStore } from "@/features/calendar/store/calendar.store";
 import type { AssistantState, ChatMessage } from "../types/assistant.types";
 
 interface AssistantStore extends AssistantState {
@@ -80,8 +81,9 @@ export const useAssistantStore = create<AssistantStore>((set, get) => ({
           messages: patchMessage(s.messages, replyId, (m) => ({ ...m, pending: false })),
         }));
         // The agent may have created/edited nodes or meetings server-side.
-        // Pull the canvas back into sync.
+        // Pull the canvas and calendar back into sync.
         useCanvasStore.getState().requestReload();
+        void useCalendarStore.getState().fetchEvents(projectId);
       },
     });
   },

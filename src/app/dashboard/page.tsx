@@ -6,6 +6,9 @@ import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store
 import { WorkspaceCard } from "@/features/workspaces/components/workspace-card";
 import { ACCENT_SWATCHES } from "@/config/theme.config";
 import { APP } from "@/config/app.config";
+import { useAsyncAction } from "@/shared/hooks/use-async-action";
+import { Spinner } from "@/shared/components/ui/spinner";
+import { Skeleton } from "@/shared/components/ui/skeleton";
 
 type NavSection = "workspaces" | "recent" | "templates" | "settings" | "usage";
 
@@ -35,14 +38,18 @@ export default function DashboardPage() {
   const sorted = [...workspaces].sort((a, b) => b.updatedAt - a.updatedAt);
   const recent = sorted.slice(0, 5);
 
-  const handleCreate = async () => {
+  const { run: handleCreate, pending: creating } = useAsyncAction(async () => {
     if (!newName.trim()) return;
     await createWorkspace(newName.trim(), newDesc.trim(), newColor);
     setModalOpen(false);
     setNewName("");
     setNewDesc("");
     setNewColor(ACCENT_SWATCHES[0]);
-  };
+  });
+
+  const { run: createFromTemplate, pending: creatingTemplate } = useAsyncAction(
+    (t: (typeof TEMPLATES)[number]) => createWorkspace(t.name, t.description, ACCENT_SWATCHES[0]),
+  );
 
   const handleOpenWorkspace = (id: string) => {
     if (navGuard.current) return;
@@ -109,13 +116,16 @@ export default function DashboardPage() {
               <span>●</span> Offline — changes will sync when you reconnect
             </div>
           )}
-          {isLoading && displayed.length === 0 && (
-            <div className="dash-empty">Loading workspaces…</div>
-          )}
           {(section === "workspaces" || section === "recent") && (
             <>
               <div className="dash-section-title">{section === "recent" ? "Recently opened" : "All workspaces"}</div>
-              {displayed.length === 0 && !isLoading ? (
+              {isLoading && displayed.length === 0 ? (
+                <div className="ws-grid">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <Skeleton key={i} height={132} radius={12} />
+                  ))}
+                </div>
+              ) : displayed.length === 0 ? (
                 <div className="dash-empty">No workspaces yet. Create one to get started.</div>
               ) : (
                 <div className="ws-grid">
@@ -141,10 +151,9 @@ export default function DashboardPage() {
                   <div
                     key={t.id}
                     className="ws-card"
-                    onClick={async () => {
-                      await createWorkspace(t.name, t.description, ACCENT_SWATCHES[0]);
-                    }}
-                    style={{ cursor: "pointer" }}
+                    data-busy={creatingTemplate ? "1" : "0"}
+                    onClick={() => createFromTemplate(t)}
+                    style={{ cursor: creatingTemplate ? "wait" : "pointer", pointerEvents: creatingTemplate ? "none" : undefined }}
                   >
                     <div className="ws-card-accent" style={{ background: "var(--accent)" }} />
                     <div className="ws-card-body">
@@ -227,7 +236,9 @@ export default function DashboardPage() {
             </div>
             <div className="ws-modal-actions">
               <button type="button" className="cancel" onClick={() => setModalOpen(false)}>Cancel</button>
-              <button type="button" className="submit" onClick={handleCreate} disabled={!newName.trim()}>Create</button>
+              <button type="button" className="submit" onClick={() => handleCreate()} disabled={!newName.trim() || creating}>
+                {creating ? <Spinner /> : "Create"}
+              </button>
             </div>
           </div>
         </div>

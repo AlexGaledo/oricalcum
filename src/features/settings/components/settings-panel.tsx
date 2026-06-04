@@ -12,6 +12,7 @@ import { ApiError } from "@/data/api/api.types";
 import { uploadMedia } from "@/data/api/endpoints/storage.api";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
 import { ACCENT_SWATCHES } from "@/config/theme.config";
+import { Skeleton } from "@/shared/components/ui/skeleton";
 
 interface Props {
   workspaceId: string;
@@ -101,7 +102,6 @@ export function SettingsPanel({ workspaceId }: Props) {
 
   return (
     <div className="hub-view">
-      <div className="hub-eyebrow">// CONFIG_CONSOLE</div>
       <div className="hub-section-head">
         <h2 className="hub-section-title">Settings</h2>
       </div>
@@ -203,7 +203,11 @@ export function SettingsPanel({ workspaceId }: Props) {
 
       <div style={{ height: 12 }} />
       {loading ? (
-        <div className="hub-empty">Loading…</div>
+        <div className="hub-rows">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} height={40} radius={8} />
+          ))}
+        </div>
       ) : secrets.length === 0 ? (
         <div className="hub-empty">No secrets yet.</div>
       ) : (

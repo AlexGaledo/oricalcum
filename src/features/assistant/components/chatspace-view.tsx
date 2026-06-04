@@ -60,7 +60,6 @@ export function ChatspaceView({ workspaceId }: Props) {
 
   return (
     <div className="hub-view chatspace">
-      <div className="hub-eyebrow">// AI_CHATSPACE</div>
       <div className="hub-section-head">
         <h2 className="hub-section-title">AI Chatspace</h2>
         {messages.length > 0 && (

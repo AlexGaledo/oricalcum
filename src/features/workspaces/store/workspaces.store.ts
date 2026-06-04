@@ -15,6 +15,36 @@ import {
 import type { WorkspaceRecord } from "../types/workspaces.types";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
+// Debounce backend meta sync per project. Rapid title/description keystrokes used
+// to fire one un-debounced PATCH each; with variable latency those completed out of
+// order and the DB could keep a stale/partial value. Coalesce to a single write of
+// the latest record after typing settles. Camera is debounced separately in usePersistence.
+const META_SYNC_DELAY = 500;
+const metaSyncTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+
+// Re-entry guard so a double-click can't create two workspaces.
+let creatingWorkspace = false;
+
+function scheduleMetaSync(id: string) {
+  if (metaSyncTimers[id]) clearTimeout(metaSyncTimers[id]);
+  metaSyncTimers[id] = setTimeout(async () => {
+    delete metaSyncTimers[id];
+    const ws = useWorkspacesStore.getState().workspaces.find((w) => w.id === id);
+    if (!ws) return;
+    try {
+      await patchProject(id, {
+        name: ws.name,
+        description: ws.description,
+        settings: { accentColor: ws.accentColor, ...(ws.avatar ? { avatar: ws.avatar } : {}) },
+      });
+      useWorkspacesStore.setState({ isOffline: false });
+    } catch (err) {
+      console.error("Failed to update workspace on backend:", err);
+      useWorkspacesStore.setState({ isOffline: true });
+    }
+  }, META_SYNC_DELAY);
+}
+
 const DEFAULT_ACCENT = "#10A37F";
 
 interface ProjectFromBackend {
@@ -117,6 +147,10 @@ export const useWorkspacesStore = create<WorkspacesStore>()(
       },
 
       createWorkspace: async (name, description = "", accentColor = DEFAULT_ACCENT) => {
+        // Guard against double-submit: each call mints a new id, so two rapid
+        // clicks would otherwise create two distinct workspaces.
+        if (creatingWorkspace) return;
+        creatingWorkspace = true;
         const ws: WorkspaceRecord = {
           id: uid("ws"),
           name,
@@ -141,6 +175,8 @@ export const useWorkspacesStore = create<WorkspacesStore>()(
           console.error("Failed to create workspace on backend:", err);
           set({ isOffline: true });
           // Keep local workspace; it will be shown as unsynced
+        } finally {
+          creatingWorkspace = false;
         }
       },
 
@@ -170,31 +206,13 @@ export const useWorkspacesStore = create<WorkspacesStore>()(
           updatedAt: Date.now(),
         };
 
-        // Optimistic local update
+        // Optimistic local update — instant in the UI + localStorage.
         set((s) => ({
           workspaces: s.workspaces.map((w) => (w.id === id ? updated : w)),
         }));
 
-        try {
-          const apiPatch: Record<string, unknown> = {};
-          if (patch.name !== undefined) apiPatch.name = patch.name;
-          if (patch.description !== undefined) apiPatch.description = patch.description;
-          // settings is a single object on the backend — send both keys together
-          // so patching one doesn't clobber the other.
-          if (patch.accentColor !== undefined || "avatar" in patch) {
-            apiPatch.settings = {
-              accentColor: updated.accentColor,
-              ...(updated.avatar ? { avatar: updated.avatar } : {}),
-            };
-          }
-          if (Object.keys(apiPatch).length > 0) {
-            await patchProject(id, apiPatch);
-          }
-          set({ isOffline: false });
-        } catch (err) {
-          console.error("Failed to update workspace on backend:", err);
-          set({ isOffline: true });
-        }
+        // Debounced backend write of the full latest meta (last-write-wins).
+        scheduleMetaSync(id);
       },
 
       loadWorkspace: (id) => {

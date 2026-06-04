@@ -8,6 +8,7 @@ import {
   type Collaborator,
 } from "@/data/api/endpoints/collaborators.api";
 import { ApiError } from "@/data/api/api.types";
+import { Skeleton } from "@/shared/components/ui/skeleton";
 
 interface Props {
   workspaceId: string;
@@ -60,7 +61,6 @@ export function PeoplePanel({ workspaceId }: Props) {
 
   return (
     <div className="hub-view">
-      <div className="hub-eyebrow">// CREW_ACCESS</div>
       <div className="hub-section-head">
         <h2 className="hub-section-title">People</h2>
       </div>
@@ -83,7 +83,11 @@ export function PeoplePanel({ workspaceId }: Props) {
 
       <div className="hub-label">Members</div>
       {loading ? (
-        <div className="hub-empty">Loading…</div>
+        <div className="hub-rows">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} height={44} radius={8} />
+          ))}
+        </div>
       ) : (
         <ul className="hub-rows">
           {people.map((p, i) => (

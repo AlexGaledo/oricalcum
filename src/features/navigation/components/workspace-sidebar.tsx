@@ -1,9 +1,8 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
-import { useCalendarStore } from "@/features/calendar/store/calendar.store";
 
 type NavItem = {
   id: string;
@@ -13,7 +12,7 @@ type NavItem = {
   onClick?: () => void;
 };
 
-function makeNavItems(workspaceId: string, openCalendar: () => void): NavItem[] {
+function makeNavItems(workspaceId: string): NavItem[] {
   const base = `/workspace/${workspaceId}`;
   return [
     {
@@ -75,17 +74,6 @@ function makeNavItems(workspaceId: string, openCalendar: () => void): NavItem[] 
       ),
     },
     {
-      id: "calendar",
-      label: "Calendar",
-      icon: (
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <rect x="1.5" y="2.5" width="13" height="12" rx="1.5" />
-          <path d="M1.5 6.5h13M5 1v3M11 1v3" />
-        </svg>
-      ),
-      onClick: openCalendar,
-    },
-    {
       id: "settings",
       label: "Settings",
       path: `${base}/settings`,
@@ -108,9 +96,20 @@ export function WorkspaceSidebar({ workspaceId }: Props) {
   const pathname = usePathname();
   const workspace = useWorkspacesStore((s) => s.workspaces.find((w) => w.id === workspaceId));
   const [collapsed, setCollapsed] = useState(false);
-  const openCalendar = useCalendarStore((s) => s.openCalendar);
 
-  const navItems = makeNavItems(workspaceId, openCalendar);
+  const navItems = makeNavItems(workspaceId);
+
+  // Warm every hub route once the sidebar mounts. In dev this triggers Next's
+  // on-demand compile up front, so clicking a nav item resolves fast instead of
+  // freezing 2–4s on first visit.
+  useEffect(() => {
+    for (const item of navItems) {
+      if (item.path) router.prefetch(item.path);
+    }
+    // navItems is rebuilt each render but its paths are stable for a workspace.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId, router]);
+
   const activeId = navItems.find((item) => {
     if (!item.path) return false;
     if (item.path === `/workspace/${workspaceId}`) {
@@ -166,6 +165,7 @@ export function WorkspaceSidebar({ workspaceId }: Props) {
             className="ws-sidebar-item"
             data-active={activeId === item.id ? "1" : "0"}
             onClick={() => (item.onClick ? item.onClick() : router.push(item.path!))}
+            onMouseEnter={() => item.path && router.prefetch(item.path)}
             title={item.label}
           >
             <span className="ws-sidebar-icon">{item.icon}</span>

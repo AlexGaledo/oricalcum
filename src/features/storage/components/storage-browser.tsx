@@ -5,6 +5,7 @@ import { useStorage } from "../hooks/use-storage";
 import { StorageToolbar } from "./storage-toolbar";
 import { FolderRow, FileRow } from "./file-row";
 import { FilePreview } from "./file-preview";
+import { Skeleton } from "@/shared/components/ui/skeleton";
 import type { StorageFile } from "../types/storage.types";
 
 interface Props {
@@ -59,7 +60,6 @@ export function StorageBrowser({ workspaceId }: Props) {
 
   return (
     <div className="hub-view">
-      <div className="hub-eyebrow">// WORKSPACE_STORAGE</div>
       <header className="hub-hero">
         <h1 className="hub-hero-title">Storage</h1>
         <p className="hub-hero-desc">Files & folders for this workspace, backed by S3.</p>
@@ -108,7 +108,13 @@ export function StorageBrowser({ workspaceId }: Props) {
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
       >
-        {s.loading && <div className="storage-empty">Loading…</div>}
+        {s.loading && (
+          <div className="storage-list">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} height={40} radius={6} />
+            ))}
+          </div>
+        )}
         {isEmpty && <div className="storage-empty">Empty folder — drop files here or use Upload.</div>}
 
         {!s.loading && (

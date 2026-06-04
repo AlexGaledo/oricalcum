@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useCalendarStore } from "../store/calendar.store";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
+import { useAsyncAction } from "@/shared/hooks/use-async-action";
+import { Spinner } from "@/shared/components/ui/spinner";
 
 const EVENT_COLORS = [
   "#10A37F",
@@ -61,7 +63,7 @@ export function EventDetailContent() {
 
   if (!event) return null;
 
-  const handleSave = async () => {
+  const { run: handleSave, pending: saving } = useAsyncAction(async () => {
     if (!activeId) return;
     const startTs = parseLocalDate(start);
     // Guard: an end at or before the start is meaningless — clamp to +1h.
@@ -77,12 +79,12 @@ export function EventDetailContent() {
       color: color || undefined,
     });
     clearSelection();
-  };
+  });
 
-  const handleDelete = async () => {
+  const { run: handleDelete, pending: deleting } = useAsyncAction(async () => {
     if (!activeId) return;
     await deleteEvent(activeId, event.id);
-  };
+  });
 
   return (
     <>
@@ -92,7 +94,7 @@ export function EventDetailContent() {
           EVENT · {event.id.slice(0, 6)}
         </div>
         <div className="docpanel-actions">
-          <button type="button" className="docpanel-btn" title="Delete" onClick={handleDelete}>
+          <button type="button" className="docpanel-btn" title="Delete" onClick={() => handleDelete()} disabled={deleting}>
             <svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
               <path d="M3 4.5h8M5.5 4.5V3a1 1 0 011-1h1a1 1 0 011 1v1.5M4.5 4.5v7a1 1 0 001 1h3a1 1 0 001-1v-7" />
             </svg>
@@ -181,8 +183,8 @@ export function EventDetailContent() {
           <button type="button" className="event-detail-cancel-btn" onClick={clearSelection}>
             Cancel
           </button>
-          <button type="button" className="event-detail-save-btn" onClick={handleSave}>
-            Save
+          <button type="button" className="event-detail-save-btn" onClick={() => handleSave()} disabled={saving}>
+            {saving ? <Spinner /> : "Save"}
           </button>
         </div>
       </div>

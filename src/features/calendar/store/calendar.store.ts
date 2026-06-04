@@ -54,6 +54,9 @@ interface CalendarStore {
 
 const HOUR = 3_600_000;
 
+// Re-entry guard so a rapid double-click on a calendar cell can't create two events.
+let addingEvent = false;
+
 export const useCalendarStore = create<CalendarStore>((set, get) => ({
   events: [],
   isOpen: false,
@@ -94,6 +97,8 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
   },
 
   addEvent: async (projectId, data) => {
+    if (addingEvent) return undefined as unknown as CalendarEvent;
+    addingEvent = true;
     const now = Date.now();
     const start = data.start;
     // Default to a 1h block when no end supplied; never allow end <= start.
@@ -111,9 +116,13 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
       createdAt: now,
       updatedAt: now,
     };
-    await createCalendarEvent(projectId, eventToBackend(event));
-    set((s) => ({ events: [...s.events, event] }));
-    return event;
+    try {
+      await createCalendarEvent(projectId, eventToBackend(event));
+      set((s) => ({ events: [...s.events, event] }));
+      return event;
+    } finally {
+      addingEvent = false;
+    }
   },
 
   updateEvent: async (projectId, id, patch) => {

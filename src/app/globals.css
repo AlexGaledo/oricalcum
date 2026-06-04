@@ -4217,3 +4217,41 @@ button { font-family: inherit; }
 .settings-avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
 .settings-avatar-fallback { font-size: 18px; color: var(--text-faint); font-family: var(--font-mono); }
 .settings-avatar-btn { cursor: pointer; }
+
+/* ── Loading primitives (Spinner + Skeleton) ─────────────────────────── */
+.spinner-sm {
+  display: inline-block;
+  border: 2px solid rgba(var(--accent-rgb), 0.25);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spinner-spin 0.6s linear infinite;
+  vertical-align: middle;
+}
+@keyframes spinner-spin {
+  to { transform: rotate(360deg); }
+}
+
+.skeleton {
+  display: block;
+  background: linear-gradient(
+    90deg,
+    var(--surface) 25%,
+    var(--line-strong) 37%,
+    var(--surface) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+/* Content-area loading fallback for hub route transitions (sidebar stays). */
+.hub-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  width: 100%;
+}

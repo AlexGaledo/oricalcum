@@ -40,6 +40,9 @@ function toItem(raw: Record<string, unknown>): SnapshotItem {
   };
 }
 
+// Re-entry guard so a double-click can't create two snapshots.
+let capturing = false;
+
 export const useSnapshotsStore = create<SnapshotsStore>((set, get) => ({
   items: [],
   loading: false,
@@ -56,11 +59,18 @@ export const useSnapshotsStore = create<SnapshotsStore>((set, get) => ({
   },
 
   capture: async (projectId, name) => {
-    const nodes = useNodeStore.getState().nodes.map(nodeToBackend);
-    const edges = useEdgeStore.getState().edges.map(edgeToBackend);
-    const camera = useCanvasStore.getState().camera;
-    await createSnapshot(projectId, name, { nodes, edges, camera });
-    await get().refresh(projectId);
+    // Guard against double-submit creating duplicate snapshots.
+    if (capturing) return;
+    capturing = true;
+    try {
+      const nodes = useNodeStore.getState().nodes.map(nodeToBackend);
+      const edges = useEdgeStore.getState().edges.map(edgeToBackend);
+      const camera = useCanvasStore.getState().camera;
+      await createSnapshot(projectId, name, { nodes, edges, camera });
+      await get().refresh(projectId);
+    } finally {
+      capturing = false;
+    }
   },
 
   restore: async (projectId, snapshotId) => {
