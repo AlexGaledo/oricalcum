@@ -1,7 +1,8 @@
 import { apiClient } from "./api-client";
 
-export async function fetchNodes(projectId: string) {
-  return apiClient.get<Record<string, unknown>[]>(`/projects/${projectId}/nodes`);
+export async function fetchNodes(projectId: string, nodespaceId?: string) {
+  const q = nodespaceId ? `?nodespace_id=${encodeURIComponent(nodespaceId)}` : "";
+  return apiClient.get<Record<string, unknown>[]>(`/projects/${projectId}/nodes${q}`);
 }
 
 export async function fetchNode(projectId: string, nodeId: string) {

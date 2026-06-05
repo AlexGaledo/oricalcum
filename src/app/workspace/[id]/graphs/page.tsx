@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Canvas, Minimap } from "@/features/canvas";
+import { Canvas, Minimap, SyncPulse } from "@/features/canvas";
 import { SpawnGhost } from "@/features/nodes";
 import { LoadingScreen } from "@/shared/components/ui/loading-screen";
 import {
@@ -14,6 +14,7 @@ import {
 } from "@/features/toolbar";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
 import { useCanvasStore } from "@/features/canvas/store/canvas.store";
+import { useFilesStore } from "@/features/files/store/files.store";
 import { usePersistence } from "@/features/canvas/hooks/use-persistence";
 import { fetchProject, createProject } from "@/data/api/endpoints/projects.api";
 import { ApiError } from "@/data/api/api.types";
@@ -49,6 +50,9 @@ export default function GraphsCanvasPage() {
   const fileTreeOpen = useCanvasStore((s) => s.fileTreeOpen);
   const setFileTreeOpen = useCanvasStore((s) => s.setFileTreeOpen);
   const [projectSynced, setProjectSynced] = useState(false);
+  const hydrateFiles = useFilesStore((s) => s.hydrate);
+  const activeFileId = useFilesStore((s) => s.activeFileId);
+  const filesLoaded = useFilesStore((s) => s.loaded);
 
   // sync workspace to backend as a project (seed if missing)
   useEffect(() => {
@@ -72,7 +76,12 @@ export default function GraphsCanvasPage() {
       });
   }, [id, workspace?.name, workspace?.description]);
 
-  usePersistence(projectSynced ? id : null);
+  // Once the project exists, hydrate its nodespace tree from the backend.
+  useEffect(() => {
+    if (projectSynced && id) hydrateFiles(id);
+  }, [projectSynced, id, hydrateFiles]);
+
+  usePersistence(projectSynced && filesLoaded ? id : null, activeFileId);
 
   return (
     <>
@@ -86,6 +95,7 @@ export default function GraphsCanvasPage() {
         </div>
 
         <Canvas readOnly={isMobile} />
+        <SyncPulse />
         <Topbar />
         {/* Scrim for the file-explorer drawer on mobile */}
         {isMobile && fileTreeOpen && (

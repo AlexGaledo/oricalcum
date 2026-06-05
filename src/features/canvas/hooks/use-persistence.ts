@@ -7,7 +7,6 @@ import { useCanvasStore } from "@/features/canvas/store/canvas.store";
 import { fetchNodes, createNode, patchNode, deleteNode } from "@/data/api/endpoints/nodes.api";
 import { fetchEdges, createEdge, deleteEdge } from "@/data/api/endpoints/edges.api";
 import { fetchProject, patchProject } from "@/data/api/endpoints/projects.api";
-import { prefetchCache } from "@/shared/lib/prefetch-cache";
 import {
   nodeToBackend,
   nodeToBackendPatch,
@@ -15,21 +14,31 @@ import {
   edgeToBackend,
   edgeFromBackend,
 } from "@/features/canvas/utils/entity-mappers";
-import type { Camera } from "@/shared/types";
+import type { Camera, OriNode, OriEdge } from "@/shared/types";
 
 const NODE_DEBOUNCE = 400;
 const CAMERA_DEBOUNCE = 600;
 
 /**
- * Backend-primary persistence. On projectId change it hydrates the canvas
- * stores from the API, then mirrors every node/edge/camera mutation back to
- * the backend via debounced per-entity REST calls.
- *
- * localStorage (workspaces.store) acts only as an offline cache / seed source.
+ * Per-nodespace graph cache (module-level so it survives the hook re-running on
+ * every nodespace switch). Lets a switch paint the *correct* target graph
+ * instantly, then revalidate against the backend in the background — instead of
+ * showing the previous nodespace's nodes until the fetch resolves. One fetch per
+ * switch, same as before: this only removes the visual wait, it doesn't poll.
  */
-export function usePersistence(projectId: string | null) {
+const graphCache = new Map<string, { nodes: OriNode[]; edges: OriEdge[] }>();
+const cacheKey = (projectId: string, nodespaceId: string) => `${projectId}:${nodespaceId}`;
+
+/**
+ * Backend-primary persistence, scoped to a single **nodespace** within a project.
+ * On `projectId`/`nodespaceId` change it hydrates the canvas stores from that
+ * nodespace's nodes/edges, then mirrors every mutation back via debounced
+ * per-entity REST. Switching nodespaces re-hydrates from the backend (there is no
+ * local snapshot swap anymore), so all writes carry the active `nodespace_id`.
+ */
+export function usePersistence(projectId: string | null, nodespaceId: string | null) {
   useEffect(() => {
-    if (!projectId) return;
+    if (!projectId || !nodespaceId) return;
 
     let disposed = false;
     let hydrating = true;
@@ -41,6 +50,20 @@ export function usePersistence(projectId: string | null) {
     let cameraTimer: ReturnType<typeof setTimeout> | null = null;
 
     // ---- node writes (coalesced create/patch per id) ----
+    const writeNode = (id: string) => {
+      const node = useNodeStore.getState().nodes.find((n) => n.id === id);
+      if (!node) return;
+      if (serverNodeIds.has(id)) {
+        patchNode(projectId, id, nodeToBackendPatch(node)).catch(console.error);
+      } else {
+        serverNodeIds.add(id);
+        createNode(projectId, nodeToBackend(node, nodespaceId)).catch((err) => {
+          serverNodeIds.delete(id);
+          console.error(err);
+        });
+      }
+    };
+
     const scheduleNodeWrite = (id: string) => {
       const existing = nodeTimers.get(id);
       if (existing) clearTimeout(existing);
@@ -48,17 +71,7 @@ export function usePersistence(projectId: string | null) {
         id,
         setTimeout(() => {
           nodeTimers.delete(id);
-          const node = useNodeStore.getState().nodes.find((n) => n.id === id);
-          if (!node) return;
-          if (serverNodeIds.has(id)) {
-            patchNode(projectId, id, nodeToBackendPatch(node)).catch(console.error);
-          } else {
-            serverNodeIds.add(id);
-            createNode(projectId, nodeToBackend(node)).catch((err) => {
-              serverNodeIds.delete(id);
-              console.error(err);
-            });
-          }
+          writeNode(id);
         }, NODE_DEBOUNCE),
       );
     };
@@ -74,6 +87,16 @@ export function usePersistence(projectId: string | null) {
       }
     };
 
+    const writeEdge = (id: string) => {
+      const edge = useEdgeStore.getState().edges.find((e) => e.id === id);
+      if (!edge || serverEdgeIds.has(id)) return;
+      serverEdgeIds.add(id);
+      createEdge(projectId, edgeToBackend(edge, nodespaceId)).catch((err) => {
+        serverEdgeIds.delete(id);
+        console.error(err);
+      });
+    };
+
     const scheduleEdgeWrite = (id: string) => {
       const existing = edgeTimers.get(id);
       if (existing) clearTimeout(existing);
@@ -81,13 +104,7 @@ export function usePersistence(projectId: string | null) {
         id,
         setTimeout(() => {
           edgeTimers.delete(id);
-          const edge = useEdgeStore.getState().edges.find((e) => e.id === id);
-          if (!edge || serverEdgeIds.has(id)) return;
-          serverEdgeIds.add(id);
-          createEdge(projectId, edgeToBackend(edge)).catch((err) => {
-            serverEdgeIds.delete(id);
-            console.error(err);
-          });
+          writeEdge(id);
         }, NODE_DEBOUNCE),
       );
     };
@@ -103,85 +120,66 @@ export function usePersistence(projectId: string | null) {
       }
     };
 
-    // ---- hydrate (initial load + on-demand reload) ----
-    // `useCache`    : consume the prefetch cache (first load only).
-    // `seedIfEmpty` : push local cache to an empty backend (first load only).
-    //                 On a reload, an empty backend means truth is empty —
-    //                 clear the canvas instead of re-seeding.
-    const hydrate = async (useCache: boolean, seedIfEmpty: boolean) => {
-      hydrating = true;
-      try {
-        let rawNodes: Record<string, unknown>[];
-        let rawEdges: Record<string, unknown>[];
-        let project: Record<string, unknown>;
-
-        const cached = useCache ? prefetchCache.get(projectId) : null;
-        if (cached) {
-          rawNodes = cached.nodes;
-          rawEdges = cached.edges;
-          project = cached.project;
-          prefetchCache.delete(projectId);
-        } else {
-          [rawNodes, rawEdges, project] = await Promise.all([
-            fetchNodes(projectId),
-            fetchEdges(projectId),
-            fetchProject(projectId),
-          ]);
-        }
-
-        if (disposed) return;
-
-        const camera = (project as { camera?: Camera }).camera;
-
-        if (rawNodes.length > 0 || rawEdges.length > 0) {
-          // backend has data — it wins. Rebuild server-id bookkeeping so later
-          // edits patch (not recreate) and server-removed ids drop out.
-          const nodes = rawNodes.map(nodeFromBackend);
-          const edges = rawEdges.map(edgeFromBackend);
-          serverNodeIds.clear();
-          serverEdgeIds.clear();
-          nodes.forEach((n) => serverNodeIds.add(n.id));
-          edges.forEach((e) => serverEdgeIds.add(e.id));
-          useNodeStore.setState({ nodes, selectedId: null });
-          useEdgeStore.setState({ edges, selectedEdgeId: null });
-        } else if (seedIfEmpty) {
-          // backend empty — seed it from whatever the local cache loaded
-          const localNodes = useNodeStore.getState().nodes;
-          const localEdges = useEdgeStore.getState().edges;
-          for (const n of localNodes) {
-            serverNodeIds.add(n.id);
-            createNode(projectId, nodeToBackend(n)).catch((err) => {
-              serverNodeIds.delete(n.id);
-              console.error(err);
-            });
-          }
-          for (const e of localEdges) {
-            serverEdgeIds.add(e.id);
-            createEdge(projectId, edgeToBackend(e)).catch((err) => {
-              serverEdgeIds.delete(e.id);
-              console.error(err);
-            });
-          }
-        } else {
-          // reload against an empty backend — mirror the emptiness
-          serverNodeIds.clear();
-          serverEdgeIds.clear();
-          useNodeStore.setState({ nodes: [], selectedId: null });
-          useEdgeStore.setState({ edges: [], selectedEdgeId: null });
-        }
-
-        if (camera) {
-          useCanvasStore.setState({ camera });
-        }
-      } catch (err) {
-        // offline / fetch failure — keep the current state as-is
-        console.error("Persistence hydrate failed, using local cache:", err);
-      } finally {
-        if (!disposed) hydrating = false;
+    // Flush any pending debounced writes immediately (called on teardown so a
+    // nodespace switch within the debounce window doesn't drop the last edit).
+    const flushPending = () => {
+      for (const [id, t] of nodeTimers) {
+        clearTimeout(t);
+        nodeTimers.delete(id);
+        writeNode(id);
+      }
+      for (const [id, t] of edgeTimers) {
+        clearTimeout(t);
+        edgeTimers.delete(id);
+        writeEdge(id);
       }
     };
 
-    hydrate(true, true);
+    const key = cacheKey(projectId, nodespaceId);
+
+    // ---- hydrate (load the active nodespace's graph) ----
+    const hydrate = async () => {
+      hydrating = true;
+      useCanvasStore.getState().setSyncing(true);
+      try {
+        const [rawNodes, rawEdges, project] = await Promise.all([
+          fetchNodes(projectId, nodespaceId),
+          fetchEdges(projectId, nodespaceId),
+          fetchProject(projectId),
+        ]);
+        if (disposed) return;
+
+        const nodes = rawNodes.map(nodeFromBackend);
+        const edges = rawEdges.map(edgeFromBackend);
+        serverNodeIds.clear();
+        serverEdgeIds.clear();
+        nodes.forEach((n) => serverNodeIds.add(n.id));
+        edges.forEach((e) => serverEdgeIds.add(e.id));
+        useNodeStore.setState({ nodes, selectedId: null });
+        useEdgeStore.setState({ edges, selectedEdgeId: null });
+        graphCache.set(key, { nodes, edges }); // freshen the cache
+
+        const camera = (project as { camera?: Camera }).camera;
+        if (camera) useCanvasStore.setState({ camera });
+      } catch (err) {
+        // offline / fetch failure — keep the current canvas as-is
+        console.error("Persistence hydrate failed, using local state:", err);
+      } finally {
+        if (!disposed) {
+          hydrating = false;
+          useCanvasStore.getState().setSyncing(false);
+        }
+      }
+    };
+
+    // Instant paint: show this nodespace's cached graph immediately (correct, not
+    // the previous one), then revalidate. First-ever visit has no cache → start
+    // empty (honest brief blank) while the background fetch fills it.
+    const cached = graphCache.get(key);
+    useNodeStore.setState({ nodes: cached?.nodes ?? [], selectedId: null });
+    useEdgeStore.setState({ edges: cached?.edges ?? [], selectedEdgeId: null });
+
+    hydrate();
 
     // ---- subscriptions ----
     const unsubNodes = useNodeStore.subscribe((state, prev) => {
@@ -219,11 +217,11 @@ export function usePersistence(projectId: string | null) {
     });
 
     // Re-hydrate on demand (e.g. after the assistant edits the workspace
-    // server-side). Skips the prefetch cache and the empty-backend seed.
+    // server-side, or after a snapshot restore).
     const unsubReload = useCanvasStore.subscribe((state, prev) => {
       if (disposed) return;
       if (state.reloadNonce === prev.reloadNonce) return;
-      hydrate(false, false);
+      hydrate();
     });
 
     return () => {
@@ -232,9 +230,14 @@ export function usePersistence(projectId: string | null) {
       unsubEdges();
       unsubCamera();
       unsubReload();
-      for (const t of nodeTimers.values()) clearTimeout(t);
-      for (const t of edgeTimers.values()) clearTimeout(t);
+      // Snapshot the outgoing graph so returning to this nodespace paints the
+      // latest edits instantly (cleanup runs before the next effect hydrates).
+      graphCache.set(key, {
+        nodes: useNodeStore.getState().nodes,
+        edges: useEdgeStore.getState().edges,
+      });
+      flushPending();
       if (cameraTimer) clearTimeout(cameraTimer);
     };
-  }, [projectId]);
+  }, [projectId, nodespaceId]);
 }

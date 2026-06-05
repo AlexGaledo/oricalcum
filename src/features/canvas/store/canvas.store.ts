@@ -38,6 +38,10 @@ interface CanvasStore {
    *  (e.g. after the assistant edits nodes/edges server-side). */
   reloadNonce: number;
   requestReload: () => void;
+  /** True while a nodespace's graph is being revalidated against the backend.
+   *  Drives a subtle non-blocking sync indicator — never gates the canvas. */
+  syncing: boolean;
+  setSyncing: (b: boolean) => void;
 }
 
 export const useCanvasStore = create<CanvasStore>((set) => ({
@@ -85,4 +89,6 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
   setDocExpanded: (b) => set({ docExpanded: b }),
   reloadNonce: 0,
   requestReload: () => set((s) => ({ reloadNonce: s.reloadNonce + 1 })),
+  syncing: false,
+  setSyncing: (b) => set({ syncing: b }),
 }));

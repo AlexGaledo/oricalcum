@@ -57,7 +57,7 @@ async function renderHydrated(nodeId = "n_1") {
   vi.mocked(fetchNodes).mockResolvedValue([wireNode(nodeId)] as never);
   vi.mocked(fetchEdges).mockResolvedValue([] as never);
   vi.mocked(fetchProject).mockResolvedValue({ camera: { x: 0, y: 0, zoom: 1 } } as never);
-  const view = renderHook(() => usePersistence("p_1"));
+  const view = renderHook(() => usePersistence("p_1", "ns_1"));
   await waitFor(() => expect(useNodeStore.getState().nodes).toHaveLength(1));
   return view;
 }
@@ -71,16 +71,29 @@ describe("hydration", () => {
     expect(patchNode).not.toHaveBeenCalled();
   });
 
-  it("seeds the backend from local cache when backend is empty", async () => {
+  it("clears the canvas for an empty nodespace and does not seed from local state", async () => {
+    // Nodespace-scoped persistence: an empty backend means the nodespace is empty,
+    // not that we should upload whatever happens to be in the store.
     useNodeStore.setState({ nodes: [localNode("local_1")], selectedId: null });
     vi.mocked(fetchNodes).mockResolvedValue([] as never);
     vi.mocked(fetchEdges).mockResolvedValue([] as never);
     vi.mocked(fetchProject).mockResolvedValue({ camera: { x: 0, y: 0, zoom: 1 } } as never);
 
-    renderHook(() => usePersistence("p_1"));
+    renderHook(() => usePersistence("p_1", "ns_1"));
 
+    await waitFor(() => expect(useNodeStore.getState().nodes).toHaveLength(0));
+    await new Promise((r) => setTimeout(r, 500));
+    expect(createNode).not.toHaveBeenCalled();
+  });
+
+  it("tags created nodes with the active nodespace id", async () => {
+    await renderHydrated();
+    useNodeStore.setState({ nodes: [...useNodeStore.getState().nodes, localNode("n_new")] });
     await waitFor(() => expect(createNode).toHaveBeenCalledTimes(1));
-    expect(vi.mocked(createNode).mock.calls[0][1]).toMatchObject({ id: "local_1" });
+    expect(vi.mocked(createNode).mock.calls[0][1]).toMatchObject({
+      id: "n_new",
+      nodespace_id: "ns_1",
+    });
   });
 });
 

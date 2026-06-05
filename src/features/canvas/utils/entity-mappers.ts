@@ -3,9 +3,10 @@ import type { OriNode, OriEdge, ShapeId, PortSide } from "@/shared/types";
 // Maps between frontend camelCase models and the backend's snake_case JSON contract.
 // Backend models: oricalcum-api/app/models/{node,edge}.py
 
-export function nodeToBackend(node: OriNode): Record<string, unknown> {
+export function nodeToBackend(node: OriNode, nodespaceId?: string | null): Record<string, unknown> {
   return {
     id: node.id,
+    nodespace_id: nodespaceId ?? null,
     x: node.x,
     y: node.y,
     w: node.w,
@@ -62,9 +63,10 @@ export function nodeFromBackend(n: Record<string, unknown>): OriNode {
   };
 }
 
-export function edgeToBackend(edge: OriEdge): Record<string, unknown> {
+export function edgeToBackend(edge: OriEdge, nodespaceId?: string | null): Record<string, unknown> {
   return {
     id: edge.id,
+    nodespace_id: nodespaceId ?? null,
     from_node: edge.from,
     to_node: edge.to,
     from_port: edge.fromPort,

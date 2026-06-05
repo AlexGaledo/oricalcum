@@ -253,7 +253,7 @@ export function EditorPanel() {
 
   return (
     <>
-      <aside className={`docpanel${open && !docExpanded ? " is-open" : ""}`}>
+      <aside className={`docpanel docpanel--doc${open && !docExpanded ? " is-open" : ""}`}>
         {docBodyProps ? (
           <DocBody {...docBodyProps} expanded={false} />
         ) : null}
