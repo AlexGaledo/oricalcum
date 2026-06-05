@@ -1,56 +1,62 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
-import { Canvas, Minimap } from "@/features/canvas";
+import { useParams } from "next/navigation";
+import dynamic from "next/dynamic";
+import { Canvas, Minimap, SyncPulse } from "@/features/canvas";
 import { SpawnGhost } from "@/features/nodes";
-import { EditorPanel } from "@/features/documents";
-import { FileExplorer } from "@/features/files";
 import { LoadingScreen } from "@/shared/components/ui/loading-screen";
-import { ContextMenu } from "@/shared/components/ui/context-menu";
 import {
   Topbar,
   Toolbar,
   StatusBar,
   ConnectBanner,
-  OricalcumTweaks,
-  VisibilityMenu,
 } from "@/features/toolbar";
-import { AiInputBar } from "@/features/ai-input";
-import { CalendarView } from "@/features/calendar";
-import { AssistantPanel } from "@/features/assistant";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
 import { useCanvasStore } from "@/features/canvas/store/canvas.store";
+import { useFilesStore } from "@/features/files/store/files.store";
 import { usePersistence } from "@/features/canvas/hooks/use-persistence";
 import { fetchProject, createProject } from "@/data/api/endpoints/projects.api";
 import { ApiError } from "@/data/api/api.types";
-import { supabase } from "@/lib/supabase";
 import { useIsMobile } from "@/shared/hooks/use-is-mobile";
 
+/* ── Heavy overlay / panel components loaded on demand ───────── */
+const EditorPanel = dynamic(() => import("@/features/documents").then((m) => ({ default: m.EditorPanel })), {
+  ssr: false,
+});
+const FileExplorer = dynamic(() => import("@/features/files").then((m) => ({ default: m.FileExplorer })), {
+  ssr: false,
+});
+const OricalcumTweaks = dynamic(() => import("@/features/toolbar").then((m) => ({ default: m.OricalcumTweaks })), {
+  ssr: false,
+});
+const VisibilityMenu = dynamic(() => import("@/features/toolbar").then((m) => ({ default: m.VisibilityMenu })), {
+  ssr: false,
+});
+const AiInputBar = dynamic(() => import("@/features/ai-input").then((m) => ({ default: m.AiInputBar })), {
+  ssr: false,
+});
+const AssistantPanel = dynamic(() => import("@/features/assistant").then((m) => ({ default: m.AssistantPanel })), {
+  ssr: false,
+});
+const ContextMenu = dynamic(() => import("@/shared/components/ui/context-menu").then((m) => ({ default: m.ContextMenu })), {
+  ssr: false,
+});
+
 export default function GraphsCanvasPage() {
-  const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const workspace = useWorkspacesStore((s) => s.workspaces.find((w) => w.id === id));
   const isMobile = useIsMobile();
   const fileTreeOpen = useCanvasStore((s) => s.fileTreeOpen);
   const setFileTreeOpen = useCanvasStore((s) => s.setFileTreeOpen);
-  const [authed, setAuthed] = useState(false);
   const [projectSynced, setProjectSynced] = useState(false);
-
-  // explicit auth guard — redirect to login if no session
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        router.replace("/login");
-      } else {
-        setAuthed(true);
-      }
-    });
-  }, [router]);
+  const hydrateFiles = useFilesStore((s) => s.hydrate);
+  const activeFileId = useFilesStore((s) => s.activeFileId);
+  const filesLoaded = useFilesStore((s) => s.loaded);
 
   // sync workspace to backend as a project (seed if missing)
   useEffect(() => {
-    if (!authed || !id) return;
+    if (!id) return;
     setProjectSynced(false);
 
     fetchProject(id)
@@ -68,11 +74,14 @@ export default function GraphsCanvasPage() {
           console.error("Failed to sync project:", err);
         }
       });
-  }, [authed, id, workspace?.name, workspace?.description]);
+  }, [id, workspace?.name, workspace?.description]);
 
-  usePersistence(projectSynced ? id : null);
+  // Once the project exists, hydrate its nodespace tree from the backend.
+  useEffect(() => {
+    if (projectSynced && id) hydrateFiles(id);
+  }, [projectSynced, id, hydrateFiles]);
 
-  if (!authed) return null;
+  usePersistence(projectSynced && filesLoaded ? id : null, activeFileId);
 
   return (
     <>
@@ -86,6 +95,7 @@ export default function GraphsCanvasPage() {
         </div>
 
         <Canvas readOnly={isMobile} />
+        <SyncPulse />
         <Topbar />
         {/* Scrim for the file-explorer drawer on mobile */}
         {isMobile && fileTreeOpen && (
@@ -105,7 +115,6 @@ export default function GraphsCanvasPage() {
         <OricalcumTweaks />
         <VisibilityMenu />
         <AiInputBar />
-        <CalendarView />
         <AssistantPanel />
       </div>
       <ContextMenu />

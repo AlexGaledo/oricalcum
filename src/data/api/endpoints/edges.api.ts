@@ -1,7 +1,8 @@
 import { apiClient } from "./api-client";
 
-export async function fetchEdges(projectId: string) {
-  return apiClient.get<Record<string, unknown>[]>(`/projects/${projectId}/edges`);
+export async function fetchEdges(projectId: string, nodespaceId?: string) {
+  const q = nodespaceId ? `?nodespace_id=${encodeURIComponent(nodespaceId)}` : "";
+  return apiClient.get<Record<string, unknown>[]>(`/projects/${projectId}/edges${q}`);
 }
 
 export async function createEdge(projectId: string, data: Record<string, unknown>) {

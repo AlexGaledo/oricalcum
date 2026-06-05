@@ -61,10 +61,8 @@ export function EventDetailContent() {
     }
   }, [event?.id]);
 
-  if (!event) return null;
-
   const { run: handleSave, pending: saving } = useAsyncAction(async () => {
-    if (!activeId) return;
+    if (!activeId || !event) return;
     const startTs = parseLocalDate(start);
     // Guard: an end at or before the start is meaningless — clamp to +1h.
     let endTs = parseLocalDate(end);
@@ -82,9 +80,11 @@ export function EventDetailContent() {
   });
 
   const { run: handleDelete, pending: deleting } = useAsyncAction(async () => {
-    if (!activeId) return;
+    if (!activeId || !event) return;
     await deleteEvent(activeId, event.id);
   });
+
+  if (!event) return null;
 
   return (
     <>

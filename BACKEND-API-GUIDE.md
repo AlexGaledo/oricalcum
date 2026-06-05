@@ -53,11 +53,33 @@ No repository layer, no sync engine, no offline queue. Stores → `usePersistenc
 
 The backend uses **snake_case** JSON. Mapping between the frontend camelCase types (`@/shared/types`) and the wire shape lives in **`features/canvas/utils/entity-mappers.ts`** (`nodeToBackend` / `nodeToBackendPatch` / `nodeFromBackend` / `edgeToBackend` / `edgeFromBackend`). Always use these — do not hand-roll mappers.
 
+### Nodespace (`/nodespaces`)
+
+A **nodespace** is a graph/file inside a project. Folders nest via `parent_id`; files
+own nodes/edges. Each project has ≥1 nodespace; nodes/edges carry `nodespace_id`.
+
+| Wire field | Type | Notes |
+|-------|------|-------|
+| `id` | `string` | Client- or server-generated |
+| `project_id` | `string` | Owning project |
+| `parent_id` | `string\|null` | Folder nesting (null = root) |
+| `kind` | `"file"\|"folder"` | |
+| `name` | `string` | Title |
+| `expanded` | `boolean` | Folder UI state |
+| `sort` | `number` | Order within parent |
+| `nodes` | `{id,x,y}[]` | **Projected** coordinate manifest (read-only; not stored) |
+| `created_at`, `updated_at` | `number` | Unix ms |
+
+The `nodes` manifest is the lightweight index (id + title via the row, + node
+coordinates) — computed from the nodes table on read, so it's always correct and
+loads fast. Full node bodies are fetched separately via `/nodes?nodespace_id=`.
+
 ### Node (`/nodes`)
 
 | Wire field | Type | Notes |
 |-------|------|-------|
 | `id` | `string` | Client-generated |
+| `nodespace_id` | `string\|null` | Owning nodespace (the client always sends it) |
 | `x`, `y` | `number` | Canvas position |
 | `w`, `h` | `number` | Current dimensions |
 | `base_w`, `base_h` | `number` | Default dims before text auto-expand |
@@ -76,6 +98,7 @@ The backend uses **snake_case** JSON. Mapping between the frontend camelCase typ
 | Wire field | Type | Notes |
 |-------|------|-------|
 | `id` | `string` | |
+| `nodespace_id` | `string\|null` | Owning nodespace |
 | `from_node`, `to_node` | `string` | Node ids |
 | `from_port`, `to_port` | `"top"\|"right"\|"bottom"\|"left"` | |
 | `version` | `number` | |
@@ -131,6 +154,30 @@ NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
 | `DELETE` | `/projects/:pid/nodes/:id` | `deleteNode` | persistence |
 
 > The server also exposes `PUT /nodes/:id` (full replace) but the client uses `PATCH` for partial updates.
+> `GET /projects/:pid/nodes` and `/edges` accept an optional `?nodespace_id=` filter — `usePersistence` always passes it so the canvas only loads the active nodespace.
+
+### Nodespaces — `data/api/endpoints/nodespaces.api.ts`
+
+| Method | Path | Client fn | Used by |
+|--------|------|-----------|---------|
+| `GET` | `/projects/:pid/nodespaces` | `fetchNodespaces` | file tree hydrate (tree + coord manifest) |
+| `POST` | `/projects/:pid/nodespaces` | `createNodespace` | new file/folder, import, tutorial seed |
+| `PATCH` | `/projects/:pid/nodespaces/:id` | `patchNodespace` | rename / move (`parent_id`) / toggle `expanded` |
+| `DELETE` | `/projects/:pid/nodespaces/:id` | `deleteNodespace` | delete (cascades to children + nodes/edges) |
+
+Driven by `features/files` (the "Nodespaces" explorer). The store
+(`files.store.ts`) hydrates the tree from the backend and mirrors every mutation;
+there is **no local per-file snapshot store anymore**. `usePersistence(projectId,
+nodespaceId)` is nodespace-scoped — switching nodespaces re-hydrates from the API.
+
+**Export/Import** (client-side, `features/files/utils/nodespace-io.ts`): a nodespace
+serializes to a self-contained JSON (`{ version, nodespace, metadata.nodes[], nodes[],
+edges[], camera }`); import recreates it with fresh ids. No server export endpoint.
+
+**Migration**: `features/files/utils/migrate-local-tree.ts` pushes the legacy
+local `oricalcum-files` tree to backend nodespaces once per project (guarded by a
+`oricalcum-files-migrated:<pid>` flag). The Alembic migration `b2c3d4e5f6a7` backfills
+one default nodespace per existing project and adopts its nodes/edges.
 
 ### Edges — `edges.api.ts`
 

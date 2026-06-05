@@ -1,14 +1,14 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useCanvasStore } from "@/features/canvas/store/canvas.store";
 import { useThemeStore } from "@/features/themes/store/theme.store";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
-import { useCalendarStore } from "@/features/calendar/store/calendar.store";
 import { useFilesStore } from "../store/files.store";
 import { ACCENT_SWATCHES } from "@/config/theme.config";
 import { FileTreeItem } from "./file-tree-item";
+import { exportActiveNodespace, importNodespaceFromFile } from "../utils/nodespace-io";
 
 export function FileExplorer() {
   const router = useRouter();
@@ -19,20 +19,22 @@ export function FileExplorer() {
   const tree = useFilesStore((s) => s.tree);
   const createFile = useFilesStore((s) => s.createFile);
   const createFolder = useFilesStore((s) => s.createFolder);
+  const move = useFilesStore((s) => s.move);
+  const activeFileId = useFilesStore((s) => s.activeFileId);
+  const [rootDrop, setRootDrop] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportPick = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-importing the same file
+    if (file) void importNodespaceFromFile(file);
+  };
   const saveCurrentSnapshot = useWorkspacesStore((s) => s.saveCurrentSnapshot);
   const activeId = useWorkspacesStore((s) => s.activeId);
   const workspaces = useWorkspacesStore((s) => s.workspaces);
   const updateMeta = useWorkspacesStore((s) => s.updateMeta);
   const setFileTreeOpen = useCanvasStore((s) => s.setFileTreeOpen);
   const activeWorkspace = workspaces.find((w) => w.id === activeId);
-  const prefetchCalendar = useCalendarStore((s) => s.fetchEvents);
-
-  useEffect(() => {
-    if (open && activeId) {
-      prefetchCalendar(activeId);
-    }
-  }, [open, activeId, prefetchCalendar]);
-
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
 
@@ -89,9 +91,52 @@ export function FileExplorer() {
           >
             ▣
           </button>
+          <button
+            type="button"
+            onClick={exportActiveNodespace}
+            disabled={!activeFileId}
+            title="Export nodespace as JSON"
+            aria-label="Export nodespace"
+          >
+            ⭳
+          </button>
+          <button
+            type="button"
+            onClick={() => importInputRef.current?.click()}
+            title="Import nodespace from JSON"
+            aria-label="Import nodespace"
+          >
+            ⭱
+          </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json,.json"
+            onChange={handleImportPick}
+            style={{ display: "none" }}
+          />
         </div>
       </div>
-      <div className="file-explorer-body">
+      <div
+        className="file-explorer-body"
+        data-drop={rootDrop ? "1" : "0"}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          if (!rootDrop) setRootDrop(true);
+        }}
+        onDragLeave={(e) => {
+          // Ignore leaves into child rows; only clear when leaving the body itself.
+          if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+          setRootDrop(false);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setRootDrop(false);
+          const draggedId = e.dataTransfer.getData("text/plain");
+          if (draggedId) move(draggedId, null);
+        }}
+      >
         {roots.map((n) => (
           <FileTreeItem key={n.id} node={n} depth={0} />
         ))}
@@ -165,13 +210,14 @@ export function FileExplorer() {
 }
 
 function ToolsSection() {
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
-  const openCalendar = useCalendarStore((s) => s.openCalendar);
+  const activeId = useWorkspacesStore((s) => s.activeId);
   const setFileTreeOpen = useCanvasStore((s) => s.setFileTreeOpen);
 
   const handleCalendarClick = () => {
     setFileTreeOpen(false);
-    openCalendar();
+    router.push(`/workspace/${activeId}/calendar`);
   };
 
   return (

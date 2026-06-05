@@ -30,15 +30,23 @@ export interface EventRange {
   to?: number;
 }
 
+export type PopupMode = "create" | "edit" | null;
+
 interface CalendarStore {
   events: CalendarEvent[];
   isOpen: boolean;
   selectedEventId: string | null;
   isLoading: boolean;
+  popupMode: PopupMode;
+  popupEventId: string | null;
+  popupCreateTime: { start: number; end: number } | null;
   openCalendar: () => void;
   closeCalendar: () => void;
   selectEvent: (id: string | null) => void;
   clearSelection: () => void;
+  openPopup: (mode: "create", range: { start: number; end: number }) => void;
+  openEditPopup: (eventId: string) => void;
+  closePopup: () => void;
 
   // ── Reads (synchronous, off the local cache) ──────────────────
   getEvent: (id: string) => CalendarEvent | undefined;
@@ -62,11 +70,17 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
   isOpen: false,
   selectedEventId: null,
   isLoading: false,
+  popupMode: null,
+  popupEventId: null,
+  popupCreateTime: null,
 
   openCalendar: () => set({ isOpen: true }),
-  closeCalendar: () => set({ isOpen: false, selectedEventId: null }),
+  closeCalendar: () => set({ isOpen: false, selectedEventId: null, popupMode: null, popupEventId: null, popupCreateTime: null }),
   selectEvent: (id) => set({ selectedEventId: id }),
   clearSelection: () => set({ selectedEventId: null }),
+  openPopup: (mode, range) => set({ popupMode: mode, popupCreateTime: range, popupEventId: null }),
+  openEditPopup: (eventId) => set({ popupMode: "edit", popupEventId: eventId, popupCreateTime: null }),
+  closePopup: () => set({ popupMode: null, popupEventId: null, popupCreateTime: null }),
 
   getEvent: (id) => get().events.find((e) => e.id === id),
 

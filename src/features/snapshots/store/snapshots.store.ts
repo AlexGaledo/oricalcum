@@ -63,8 +63,8 @@ export const useSnapshotsStore = create<SnapshotsStore>((set, get) => ({
     if (capturing) return;
     capturing = true;
     try {
-      const nodes = useNodeStore.getState().nodes.map(nodeToBackend);
-      const edges = useEdgeStore.getState().edges.map(edgeToBackend);
+      const nodes = useNodeStore.getState().nodes.map((n) => nodeToBackend(n));
+      const edges = useEdgeStore.getState().edges.map((e) => edgeToBackend(e));
       const camera = useCanvasStore.getState().camera;
       await createSnapshot(projectId, name, { nodes, edges, camera });
       await get().refresh(projectId);

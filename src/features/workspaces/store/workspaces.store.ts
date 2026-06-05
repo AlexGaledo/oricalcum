@@ -14,6 +14,7 @@ import {
 } from "@/data/api/endpoints/projects.api";
 import { createNode } from "@/data/api/endpoints/nodes.api";
 import { createEdge } from "@/data/api/endpoints/edges.api";
+import { createNodespace } from "@/data/api/endpoints/nodespaces.api";
 import { nodeToBackend, edgeToBackend } from "@/features/canvas/utils/entity-mappers";
 import { buildTutorial, TUTORIAL_META } from "../constants/tutorial";
 import type { WorkspaceRecord } from "../types/workspaces.types";
@@ -244,9 +245,17 @@ export const useWorkspacesStore = create<WorkspacesStore>()(
 
         try {
           await createProject(workspaceToCreatePayload(ws));
+          // The tutorial graph lives in a default nodespace so it loads under the
+          // file tree (nodes/edges are filtered by nodespace_id).
+          const ns = await createNodespace(ws.id, {
+            kind: "file",
+            name: "untitled",
+            created_at: now,
+            updated_at: now,
+          });
           // Nodes first (edges reference them via FK), then edges.
-          await Promise.all(nodes.map((n) => createNode(ws.id, nodeToBackend(n))));
-          await Promise.all(edges.map((e) => createEdge(ws.id, edgeToBackend(e))));
+          await Promise.all(nodes.map((n) => createNode(ws.id, nodeToBackend(n, ns.id))));
+          await Promise.all(edges.map((e) => createEdge(ws.id, edgeToBackend(e, ns.id))));
           set({ isOffline: false });
         } catch (err) {
           console.error("Failed to seed tutorial workspace:", err);
