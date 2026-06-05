@@ -8,6 +8,7 @@ import { ThemePicker } from "@/features/themes/components/theme-picker";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
 import { Breadcrumbs } from "@/features/navigation/components/breadcrumbs";
 import { APP } from "@/config/app.config";
+import { Logo } from "@/shared/components/icons/logo";
 
 export function Topbar() {
   const router = useRouter();
@@ -60,15 +61,7 @@ export function Topbar() {
             title="Back to dashboard"
             aria-label="Back to dashboard"
           >
-            <svg viewBox="0 0 12 12" fill="none">
-              <path
-                d="M3 1 L9 1 L11 6 L9 11 L3 11 L1 6 Z"
-                stroke="currentColor"
-                strokeWidth="1"
-                strokeLinejoin="round"
-              />
-              <circle cx="6" cy="6" r="1.4" fill="currentColor" />
-            </svg>
+            <Logo />
           </button>
           {activeId ? (
             <Breadcrumbs workspaceId={activeId} />

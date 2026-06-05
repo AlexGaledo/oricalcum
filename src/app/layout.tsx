@@ -37,6 +37,7 @@ const caveat = Caveat({
 export const metadata: Metadata = {
   title: "Oricalcum",
   description: "Visual systems canvas — nodes, edges, themes.",
+  icons: { icon: "/oricalcum-logo.svg", apple: "/oricalcum-logo.svg" },
 };
 
 // Mobile-first viewport. Zoom stays enabled (accessibility); the canvas page

@@ -4,6 +4,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
 import { useMobileNavStore } from "@/features/navigation/store/mobile-nav.store";
+import { Logo } from "@/shared/components/icons/logo";
 
 type NavItem = {
   id: string;
@@ -153,10 +154,7 @@ export function WorkspaceSidebar({ workspaceId }: Props) {
         {!collapsed && (
           <div className="ws-sidebar-brand">
             <span className="ws-sidebar-mark">
-              <svg viewBox="0 0 12 12" fill="none">
-                <path d="M3 1 L9 1 L11 6 L9 11 L3 11 L1 6 Z" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
-                <circle cx="6" cy="6" r="1.4" fill="currentColor" />
-              </svg>
+              <Logo />
             </span>
             <span className="ws-sidebar-name" title={workspace?.name ?? "Workspace"}>
               {workspace?.name ?? "Workspace"}

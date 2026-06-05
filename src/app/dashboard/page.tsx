@@ -10,6 +10,7 @@ import { useAsyncAction } from "@/shared/hooks/use-async-action";
 import { Spinner } from "@/shared/components/ui/spinner";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { useIsMobile } from "@/shared/hooks/use-is-mobile";
+import { Logo } from "@/shared/components/icons/logo";
 
 type NavSection = "workspaces" | "recent" | "templates" | "settings" | "usage";
 
@@ -81,11 +82,8 @@ export default function DashboardPage() {
       {/* Left nav */}
       <nav className="dash-nav" data-open={navOpen ? "1" : "0"} aria-label="Dashboard navigation">
         <div className="dash-nav-top">
-          <div className="brand-mark" style={{ width: 20, height: 20, color: "var(--accent)" }}>
-            <svg viewBox="0 0 12 12" fill="none">
-              <path d="M3 1 L9 1 L11 6 L9 11 L3 11 L1 6 Z" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
-              <circle cx="6" cy="6" r="1.4" fill="currentColor" />
-            </svg>
+          <div className="brand-mark" style={{ width: 20, height: 20 }}>
+            <Logo />
           </div>
           {navOpen && <span className="dash-nav-appname">{APP.name}</span>}
           <button
