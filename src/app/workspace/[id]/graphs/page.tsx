@@ -2,29 +2,45 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import { Canvas, Minimap } from "@/features/canvas";
 import { SpawnGhost } from "@/features/nodes";
-import { EditorPanel } from "@/features/documents";
-import { FileExplorer } from "@/features/files";
 import { LoadingScreen } from "@/shared/components/ui/loading-screen";
-import { ContextMenu } from "@/shared/components/ui/context-menu";
 import {
   Topbar,
   Toolbar,
   StatusBar,
   ConnectBanner,
-  OricalcumTweaks,
-  VisibilityMenu,
 } from "@/features/toolbar";
-import { AiInputBar } from "@/features/ai-input";
-import { CalendarView } from "@/features/calendar";
-import { AssistantPanel } from "@/features/assistant";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
 import { useCanvasStore } from "@/features/canvas/store/canvas.store";
 import { usePersistence } from "@/features/canvas/hooks/use-persistence";
 import { fetchProject, createProject } from "@/data/api/endpoints/projects.api";
 import { ApiError } from "@/data/api/api.types";
 import { useIsMobile } from "@/shared/hooks/use-is-mobile";
+
+/* ── Heavy overlay / panel components loaded on demand ───────── */
+const EditorPanel = dynamic(() => import("@/features/documents").then((m) => ({ default: m.EditorPanel })), {
+  ssr: false,
+});
+const FileExplorer = dynamic(() => import("@/features/files").then((m) => ({ default: m.FileExplorer })), {
+  ssr: false,
+});
+const OricalcumTweaks = dynamic(() => import("@/features/toolbar").then((m) => ({ default: m.OricalcumTweaks })), {
+  ssr: false,
+});
+const VisibilityMenu = dynamic(() => import("@/features/toolbar").then((m) => ({ default: m.VisibilityMenu })), {
+  ssr: false,
+});
+const AiInputBar = dynamic(() => import("@/features/ai-input").then((m) => ({ default: m.AiInputBar })), {
+  ssr: false,
+});
+const AssistantPanel = dynamic(() => import("@/features/assistant").then((m) => ({ default: m.AssistantPanel })), {
+  ssr: false,
+});
+const ContextMenu = dynamic(() => import("@/shared/components/ui/context-menu").then((m) => ({ default: m.ContextMenu })), {
+  ssr: false,
+});
 
 export default function GraphsCanvasPage() {
   const { id } = useParams<{ id: string }>();
@@ -89,7 +105,6 @@ export default function GraphsCanvasPage() {
         <OricalcumTweaks />
         <VisibilityMenu />
         <AiInputBar />
-        <CalendarView />
         <AssistantPanel />
       </div>
       <ContextMenu />

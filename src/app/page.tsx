@@ -30,7 +30,7 @@ export default function Home() {
           <Logo />
         </div>
         <h1 className="splash-title">Oricalcum</h1>
-        <p className="splash-motto">Visual systems canvas — nodes, edges, themes.</p>
+        <p className="splash-motto">An Oracle for work, teams, and hobbies.</p>
         <div className="splash-spinner" aria-hidden="true"></div>
       </div>
     </main>

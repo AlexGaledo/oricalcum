@@ -1,58 +1,58 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { useCalendarStore } from "../store/calendar.store";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
 import { CalendarWidget } from "./calendar-widget";
+import { EventPopup } from "./event-popup";
+import { EventDetailContent } from "./event-detail-content";
+import { CalendarContextMenu } from "./calendar-context-menu";
 
 export function CalendarView() {
-  const isOpen = useCalendarStore((s) => s.isOpen);
+  const router = useRouter();
+  const { id } = useParams<{ id: string }>();
   const closeCalendar = useCalendarStore((s) => s.closeCalendar);
   const events = useCalendarStore((s) => s.events);
   const isLoading = useCalendarStore((s) => s.isLoading);
   const fetchEvents = useCalendarStore((s) => s.fetchEvents);
-  const addEvent = useCalendarStore((s) => s.addEvent);
-  const selectEvent = useCalendarStore((s) => s.selectEvent);
   const updateEvent = useCalendarStore((s) => s.updateEvent);
+  const deleteEvent = useCalendarStore((s) => s.deleteEvent);
+  const openPopup = useCalendarStore((s) => s.openPopup);
+  const openEditPopup = useCalendarStore((s) => s.openEditPopup);
+  const selectEvent = useCalendarStore((s) => s.selectEvent);
+  const selectedEventId = useCalendarStore((s) => s.selectedEventId);
   const activeId = useWorkspacesStore((s) => s.activeId);
   const fetchedRef = useRef(false);
 
+  const projectId = activeId || id;
+
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    type: "event" | "date";
+    data: string | number;
+  }>({ visible: false, x: 0, y: 0, type: "date", data: 0 });
+
   useEffect(() => {
-    if (!isOpen || !activeId || fetchedRef.current) return;
+    if (!projectId || fetchedRef.current) return;
     fetchedRef.current = true;
-    if (events.length === 0) {
-      fetchEvents(activeId);
-    }
-  }, [isOpen, activeId, fetchEvents, events.length]);
+    fetchEvents(projectId);
+  }, [projectId, fetchEvents]);
 
-  useEffect(() => {
-    if (!isOpen) {
-      fetchedRef.current = false;
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeCalendar();
-    };
-    if (isOpen) window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [isOpen, closeCalendar]);
+  const closeContextMenu = useCallback(() => {
+    setContextMenu((prev) => ({ ...prev, visible: false }));
+  }, []);
 
   const handleDateClick = async (start: number) => {
-    if (!activeId) return;
-    // Create the event but leave the detail panel closed — it only opens when
-    // the user explicitly clicks an existing event.
-    await addEvent(activeId, {
-      title: "New Event",
-      start,
-      end: start + 3_600_000,
-    });
+    if (!projectId) return;
+    openPopup("create", { start, end: start + HOUR });
   };
 
   const handleRangeSelect = async (start: number, end: number) => {
-    if (!activeId) return;
-    await addEvent(activeId, { title: "New Event", start, end });
+    if (!projectId) return;
+    openPopup("create", { start, end });
   };
 
   const handleEventClick = (eventId: string) => {
@@ -60,37 +60,93 @@ export function CalendarView() {
   };
 
   const handleEventDrop = async (eventId: string, newStart: number, newEnd: number) => {
-    if (!activeId) return;
-    await updateEvent(activeId, eventId, { start: newStart, end: newEnd });
+    if (!projectId) return;
+    await updateEvent(projectId, eventId, { start: newStart, end: newEnd });
   };
 
-  if (!isOpen) return null;
+  const handleDateRightClick = (date: number, x: number, y: number) => {
+    setContextMenu({ visible: true, x, y, type: "date", data: date });
+  };
+
+  const handleEventRightClick = (eventId: string, x: number, y: number) => {
+    setContextMenu({ visible: true, x, y, type: "event", data: eventId });
+  };
+
+  const handleBack = () => {
+    closeCalendar();
+    router.push(`/workspace/${projectId}/graphs`);
+  };
+
+  const contextMenuItems =
+    contextMenu.type === "date"
+      ? [
+          {
+            label: "New event",
+            onClick: () => {
+              const start = contextMenu.data as number;
+              openPopup("create", { start, end: start + HOUR });
+            },
+          },
+        ]
+      : [
+          {
+            label: "Edit event",
+            onClick: () => {
+              const eventId = contextMenu.data as string;
+              openEditPopup(eventId);
+            },
+          },
+          {
+            label: "Delete event",
+            danger: true,
+            onClick: async () => {
+              if (!projectId) return;
+              const eventId = contextMenu.data as string;
+              await deleteEvent(projectId, eventId);
+            },
+          },
+        ];
 
   return (
-    <div className="calendar-overlay" onClick={closeCalendar}>
-      <div className="calendar-overlay-content" onClick={(e) => e.stopPropagation()}>
-        <div className="calendar-overlay-head">
-          <span className="calendar-overlay-title">Calendar</span>
-          <span className="calendar-overlay-count">
+    <div className="calendar-page">
+      <header className="calendar-page-head">
+        <button type="button" className="calendar-page-back" onClick={handleBack}>
+          <svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 3l-4 4 4 4" />
+          </svg>
+          Back to canvas
+        </button>
+        <div className="calendar-page-title-group">
+          <span className="calendar-page-title">Calendar</span>
+          <span className="calendar-page-count">
             {isLoading ? "loading…" : `${events.length} event${events.length === 1 ? "" : "s"}`}
           </span>
-          <span className="calendar-overlay-hint">drag a range to add · click an event to edit</span>
-          <button type="button" className="calendar-overlay-close" onClick={closeCalendar} title="Close (Esc)">
-            <svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-              <path d="M3 3l8 8M11 3l-8 8" />
-            </svg>
-          </button>
         </div>
-        <div className="calendar-overlay-body">
-          <CalendarWidget
-            events={events}
-            onDateClick={handleDateClick}
-            onEventClick={handleEventClick}
-            onEventDrop={handleEventDrop}
-            onRangeSelect={handleRangeSelect}
-          />
-        </div>
+      </header>
+      <div className="calendar-page-body">
+        <CalendarWidget
+          events={events}
+          onDateClick={handleDateClick}
+          onEventClick={handleEventClick}
+          onEventDrop={handleEventDrop}
+          onRangeSelect={handleRangeSelect}
+          onDateRightClick={handleDateRightClick}
+          onEventRightClick={handleEventRightClick}
+        />
+      </div>
+      <EventPopup />
+      <CalendarContextMenu
+        visible={contextMenu.visible}
+        x={contextMenu.x}
+        y={contextMenu.y}
+        items={contextMenuItems}
+        onClose={closeContextMenu}
+      />
+      <div className={`docpanel ${selectedEventId ? "is-open" : ""}`}>
+        <EventDetailContent />
       </div>
     </div>
   );
 }
+
+const HOUR = 3_600_000;

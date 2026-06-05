@@ -5,8 +5,6 @@ import { useParams } from "next/navigation";
 import { useCanvasStore } from "@/features/canvas/store/canvas.store";
 import { useNodeStore } from "@/features/nodes/store/node.store";
 import { useEdgeStore } from "@/features/edges/store/edge.store";
-import { useCalendarStore } from "@/features/calendar/store/calendar.store";
-import { EventDetailContent } from "@/features/calendar/components/event-detail-content";
 import { TrashIcon, CloseIcon, ExpandIcon } from "@/shared/components/icons";
 import type { OriNode, ShapeId } from "@/shared/types";
 import { SHAPES } from "@/shared/constants/shapes";
@@ -227,10 +225,6 @@ export function EditorPanel() {
   const removeNode = useNodeStore((s) => s.removeNode);
   const removeEdgesForNode = useEdgeStore((s) => s.removeEdgesForNode);
 
-  const calendarSelectedId = useCalendarStore((s) => s.selectedEventId);
-  const calendarEvents = useCalendarStore((s) => s.events);
-  const calendarSelectedEvent = calendarEvents.find((e) => e.id === calendarSelectedId);
-
   const [snapshot, setSnapshot] = useState<OriNode | null>(node);
   useEffect(() => {
     if (node) setSnapshot(node);
@@ -257,14 +251,10 @@ export function EditorPanel() {
       }
     : null;
 
-  const showCalendarEvent = !!calendarSelectedEvent;
-
   return (
     <>
-      <aside className={`docpanel${(open || showCalendarEvent) && !docExpanded ? " is-open" : ""}`}>
-        {showCalendarEvent ? (
-          <EventDetailContent />
-        ) : docBodyProps ? (
+      <aside className={`docpanel${open && !docExpanded ? " is-open" : ""}`}>
+        {docBodyProps ? (
           <DocBody {...docBodyProps} expanded={false} />
         ) : null}
       </aside>

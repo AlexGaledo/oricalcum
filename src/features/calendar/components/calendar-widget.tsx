@@ -13,19 +13,80 @@ interface Props {
   onEventClick: (eventId: string) => void;
   onEventDrop?: (eventId: string, newStart: number, newEnd: number) => void;
   onRangeSelect?: (start: number, end: number) => void;
+  onDateRightClick?: (date: number, x: number, y: number) => void;
+  onEventRightClick?: (eventId: string, x: number, y: number) => void;
 }
 
-export function CalendarWidget({ events, onDateClick, onEventClick, onEventDrop, onRangeSelect }: Props) {
+function renderDayBadges(cal: Calendar, container: HTMLElement, allEvents: CalendarEvent[]) {
+  const dayStr = container.getAttribute("data-date");
+  if (!dayStr) return;
+
+  const dayEvents = allEvents.filter((e) => {
+    const eStart = new Date(e.start).toISOString().slice(0, 10);
+    const eEnd = new Date(e.end).toISOString().slice(0, 10);
+    return dayStr >= eStart && dayStr <= eEnd;
+  });
+
+  let existing = container.querySelector(".fc-day-header-badges") as HTMLElement | null;
+  if (!existing) {
+    existing = document.createElement("div");
+    existing.className = "fc-day-header-badges";
+    container.appendChild(existing);
+  }
+
+  const colorCounts = new Map<string, number>();
+  for (const e of dayEvents) {
+    const color = e.color || "var(--accent)";
+    colorCounts.set(color, (colorCounts.get(color) || 0) + 1);
+  }
+
+  existing.innerHTML = Array.from(colorCounts.entries())
+    .map(
+      ([color, count]) =>
+        `<span class="fc-day-header-badge" style="background:${color};color:#fff">${count}</span>`
+    )
+    .join("");
+}
+
+function updateAllDayBadges(cal: Calendar, allEvents: CalendarEvent[]) {
+  const headers = cal.el?.querySelectorAll<HTMLElement>(".fc-col-header-cell, .fc-daygrid-day");
+  if (!headers) return;
+  for (const h of headers) {
+    renderDayBadges(cal, h, allEvents);
+  }
+}
+
+export function CalendarWidget({
+  events,
+  onDateClick,
+  onEventClick,
+  onEventDrop,
+  onRangeSelect,
+  onDateRightClick,
+  onEventRightClick,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<Calendar | null>(null);
+  const eventsRef = useRef(events);
+  eventsRef.current = events;
 
-  // Keep latest handlers in refs — FullCalendar is instantiated once (empty
-  // deps), so reading props directly would capture stale first-render closures.
-  const handlers = useRef({ onDateClick, onEventClick, onEventDrop, onRangeSelect });
-  handlers.current = { onDateClick, onEventClick, onEventDrop, onRangeSelect };
+  const handlers = useRef({
+    onDateClick,
+    onEventClick,
+    onEventDrop,
+    onRangeSelect,
+    onDateRightClick,
+    onEventRightClick,
+  });
+  handlers.current = {
+    onDateClick,
+    onEventClick,
+    onEventDrop,
+    onRangeSelect,
+    onDateRightClick,
+    onEventRightClick,
+  };
 
-  // Zoom = pixel height per 1h slot in the time-grid views. Mutated directly on
-  // the container CSS var so it never re-instantiates the calendar.
   const ZOOM_MIN = 28;
   const ZOOM_MAX = 120;
   const ZOOM_STEP = 16;
@@ -48,27 +109,33 @@ export function CalendarWidget({ events, onDateClick, onEventClick, onEventDrop,
       height: "100%",
       contentHeight: "100%",
       headerToolbar: {
-        left: "prev,next today",
+        left: "today prev,next",
         center: "title",
-        right: "zoomOut,zoomIn dayGridMonth,timeGridWeek,timeGridDay",
+        right: "dayGridMonth,timeGridCentered",
       },
-      customButtons: {
-        zoomIn: {
-          text: "+",
-          hint: "Zoom in",
-          click: () => applyZoom(zoomRef.current + ZOOM_STEP),
+      views: {
+        dayGridMonth: {
+          buttonText: "🪐",
         },
-        zoomOut: {
-          text: "−",
-          hint: "Zoom out",
-          click: () => applyZoom(zoomRef.current - ZOOM_STEP),
+        timeGridCentered: {
+          type: "timeGrid",
+          buttonText: "🌙",
+          duration: { days: 7 },
+          visibleRange: (currentDate) => {
+            const start = new Date(currentDate);
+            start.setDate(start.getDate() - 3);
+            const end = new Date(currentDate);
+            end.setDate(end.getDate() + 4);
+            return { start, end };
+          },
         },
       },
       titleFormat: { year: "numeric", month: "short" },
-      buttonText: { today: "Today", month: "Month", day: "Day", week: "Week" },
-      dayMaxEvents: 3,
+      buttonText: { today: "Today" },
+      dayMaxEvents: true,
       weekNumberCalculation: "ISO",
-      slotDuration: "01:00:00",
+      slotDuration: "00:30:00",
+      snapDuration: "00:30:00",
       slotLabelInterval: "01:00:00",
       slotMinTime: "00:00:00",
       slotMaxTime: "24:00:00",
@@ -88,27 +155,21 @@ export function CalendarWidget({ events, onDateClick, onEventClick, onEventDrop,
         hour12: false,
       },
       dateClick: (info) => {
-        // In month view a single click drills into that day; in time views it
-        // seeds a 1h event at the clicked slot.
         if (info.view.type === "dayGridMonth") {
-          cal.changeView("timeGridDay", info.date);
+          cal.changeView("timeGridCentered", info.date);
         } else {
           handlers.current.onDateClick(info.date.getTime());
         }
       },
       select: (info) => {
-        // Drag across slots (time views) to create an event spanning the range.
-        if (info.view.type === "dayGridMonth") return;
+        if (info.view.type === "dayGridMonth") {
+          cal.unselect();
+          return;
+        }
         handlers.current.onRangeSelect?.(info.start.getTime(), info.end.getTime());
         cal.unselect();
       },
       eventClick: (info) => {
-        // Events are only clickable in the hourly (time-grid) views. In month
-        // view a click drills into the day instead of opening the detail panel.
-        if (info.view.type === "dayGridMonth") {
-          cal.changeView("timeGridDay", info.event.start ?? undefined);
-          return;
-        }
         handlers.current.onEventClick(info.event.id);
       },
       eventDrop: (info) => {
@@ -130,6 +191,10 @@ export function CalendarWidget({ events, onDateClick, onEventClick, onEventDrop,
           info.el.style.setProperty("--fc-event-bg-color", info.event.backgroundColor);
           info.el.style.setProperty("--fc-event-border-color", info.event.backgroundColor);
         }
+        info.el.setAttribute("data-event-id", info.event.id);
+      },
+      datesSet: () => {
+        requestAnimationFrame(() => updateAllDayBadges(cal, eventsRef.current));
       },
     });
 
@@ -137,7 +202,60 @@ export function CalendarWidget({ events, onDateClick, onEventClick, onEventDrop,
     cal.render();
     applyZoom(zoomRef.current);
 
+    // Container-level right-click handler
+    const container = containerRef.current;
+    const handleContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+
+      // Event right-click
+      const eventEl = target.closest<HTMLElement>(".fc-event");
+      if (eventEl) {
+        const eventId = eventEl.getAttribute("data-event-id");
+        if (eventId) {
+          e.preventDefault();
+          e.stopPropagation();
+          handlers.current.onEventRightClick?.(eventId, e.clientX, e.clientY);
+          return;
+        }
+      }
+
+      // Month view day cell
+      const dayCell = target.closest<HTMLElement>(".fc-daygrid-day");
+      if (dayCell) {
+        const dateStr = dayCell.getAttribute("data-date");
+        if (dateStr) {
+          e.preventDefault();
+          e.stopPropagation();
+          const date = new Date(dateStr + "T09:00:00");
+          handlers.current.onDateRightClick?.(date.getTime(), e.clientX, e.clientY);
+          return;
+        }
+      }
+
+      // Time grid slot
+      const timeSlot = target.closest<HTMLElement>(".fc-timegrid-slot, .fc-timegrid-slot-lane, .fc-timegrid-col-frame");
+      if (timeSlot) {
+        const col = target.closest<HTMLElement>(".fc-timegrid-col");
+        if (col) {
+          const dateStr = col.getAttribute("data-date");
+          const timeEl = target.closest<HTMLElement>(".fc-timegrid-slot");
+          const timeStr = timeEl?.getAttribute("data-time");
+          if (dateStr) {
+            e.preventDefault();
+            e.stopPropagation();
+            const date = timeStr
+              ? new Date(`${dateStr}T${timeStr}`)
+              : new Date(dateStr + "T09:00:00");
+            handlers.current.onDateRightClick?.(date.getTime(), e.clientX, e.clientY);
+          }
+        }
+      }
+    };
+
+    container.addEventListener("contextmenu", handleContextMenu);
+
     return () => {
+      container.removeEventListener("contextmenu", handleContextMenu);
       cal.destroy();
       calendarRef.current = null;
     };
@@ -157,6 +275,8 @@ export function CalendarWidget({ events, onDateClick, onEventClick, onEventDrop,
         backgroundColor: e.color ?? undefined,
       });
     }
+
+    requestAnimationFrame(() => updateAllDayBadges(cal, events));
   }, [events]);
 
   return <div ref={containerRef} className="calendar-widget" />;

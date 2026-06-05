@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useCanvasStore } from "@/features/canvas/store/canvas.store";
 import { useThemeStore } from "@/features/themes/store/theme.store";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
-import { useCalendarStore } from "@/features/calendar/store/calendar.store";
 import { useFilesStore } from "../store/files.store";
 import { ACCENT_SWATCHES } from "@/config/theme.config";
 import { FileTreeItem } from "./file-tree-item";
@@ -25,14 +24,6 @@ export function FileExplorer() {
   const updateMeta = useWorkspacesStore((s) => s.updateMeta);
   const setFileTreeOpen = useCanvasStore((s) => s.setFileTreeOpen);
   const activeWorkspace = workspaces.find((w) => w.id === activeId);
-  const prefetchCalendar = useCalendarStore((s) => s.fetchEvents);
-
-  useEffect(() => {
-    if (open && activeId) {
-      prefetchCalendar(activeId);
-    }
-  }, [open, activeId, prefetchCalendar]);
-
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
 
@@ -165,13 +156,14 @@ export function FileExplorer() {
 }
 
 function ToolsSection() {
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
-  const openCalendar = useCalendarStore((s) => s.openCalendar);
+  const activeId = useWorkspacesStore((s) => s.activeId);
   const setFileTreeOpen = useCanvasStore((s) => s.setFileTreeOpen);
 
   const handleCalendarClick = () => {
     setFileTreeOpen(false);
-    openCalendar();
+    router.push(`/workspace/${activeId}/calendar`);
   };
 
   return (
