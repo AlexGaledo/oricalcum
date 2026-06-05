@@ -14,7 +14,7 @@ function clearUserCaches() {
 }
 
 const isPublicRoute = (path: string) =>
-  path === "/login" || path.startsWith("/share/");
+  path === "/login" || path === "/auth/callback" || path.startsWith("/share/");
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();

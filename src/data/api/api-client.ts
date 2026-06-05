@@ -77,6 +77,8 @@ export class ApiClient {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       Accept: "text/event-stream",
+      // Skip ngrok-free's HTML interstitial (it strips CORS headers); no-op elsewhere.
+      "ngrok-skip-browser-warning": "true",
     };
     if (this.config.authToken) {
       headers["Authorization"] = `Bearer ${this.config.authToken}`;
@@ -112,6 +114,8 @@ export class ApiClient {
     try {
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
+        // Skip ngrok-free's HTML interstitial (it strips CORS headers); no-op elsewhere.
+        "ngrok-skip-browser-warning": "true",
       };
       if (this.config.authToken) {
         headers["Authorization"] = `Bearer ${this.config.authToken}`;

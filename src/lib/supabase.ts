@@ -37,6 +37,10 @@ function createDemoClient(): SupabaseClient {
       data: { user: DEMO_SESSION.user, session: DEMO_SESSION },
       error: null,
     }),
+    signInWithOAuth: async () => ({
+      data: { provider: "google", url: "" },
+      error: null,
+    }),
     signUp: async () => ({
       data: { user: DEMO_SESSION.user, session: DEMO_SESSION },
       error: null,
