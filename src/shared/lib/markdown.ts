@@ -24,6 +24,39 @@ function escapeHtml(text: string): string {
     .replace(/>/g, "&gt;");
 }
 
+// Common LaTeX commands → plain Unicode. The model is told not to emit LaTeX,
+// but Gemini sometimes does ("$\rightarrow$"); the chat has no KaTeX so we
+// normalize it to readable text instead of showing raw source.
+const LATEX_TOKENS: [string, string][] = [
+  ["\\rightarrow", "→"],
+  ["\\Rightarrow", "⇒"],
+  ["\\leftarrow", "←"],
+  ["\\Leftarrow", "⇐"],
+  ["\\leftrightarrow", "↔"],
+  ["\\to", "→"],
+  ["\\times", "×"],
+  ["\\cdot", "·"],
+  ["\\leq", "≤"],
+  ["\\geq", "≥"],
+  ["\\neq", "≠"],
+  ["\\approx", "≈"],
+  ["\\pm", "±"],
+];
+
+/**
+ * Turn inline LaTeX math into plain text. Only touches `$...$` / `$$...$$` spans
+ * that contain a backslash command, so plain dollar amounts ($5, $10) are left
+ * alone. Known commands map to Unicode; any leftover `\cmd` is dropped.
+ */
+function stripLatex(text: string): string {
+  return text.replace(/\$\$?([^$\n]*?)\$\$?/g, (match, inner: string) => {
+    if (!inner.includes("\\")) return match; // not LaTeX (e.g. currency)
+    let s = inner;
+    for (const [cmd, glyph] of LATEX_TOKENS) s = s.split(cmd).join(glyph);
+    return s.replace(/\\[a-zA-Z]+/g, "").replace(/[{}]/g, "").trim();
+  });
+}
+
 // Allowed URL schemes for markdown links / images. Anything else (notably
 // `javascript:`, `vbscript:`, `data:text/html`) is neutralized so a crafted
 // link the assistant echoes can't run script when clicked.
@@ -56,5 +89,5 @@ chatMarked.use({
  */
 export function renderChatMarkdown(text: string): string {
   if (!text) return "";
-  return chatMarked.parse(escapeHtml(text), { async: false }) as string;
+  return chatMarked.parse(escapeHtml(stripLatex(text)), { async: false }) as string;
 }
