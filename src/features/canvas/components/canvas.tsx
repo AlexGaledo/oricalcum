@@ -134,6 +134,86 @@ export function Canvas({ readOnly = false }: { readOnly?: boolean }) {
     return () => el.removeEventListener("wheel", onWheel);
   }, [onWheel]);
 
+  // Touch gestures: one-finger pan, two-finger pinch-zoom. Drives the same
+  // camera as mouse/wheel, so it works in view-only (mobile) and desktop touch
+  // alike. Single-finger pans only when the gesture starts on the background,
+  // leaving taps on nodes/UI to their own handlers. Camera is read from the
+  // store at gesture start to avoid stale-closure jitter.
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+
+    let mode: "none" | "pan" | "pinch" = "none";
+    let sx = 0, sy = 0, camX = 0, camY = 0;
+    let startDist = 0, startZoom = 1, midX = 0, midY = 0, baseX = 0, baseY = 0;
+
+    const isBackground = (t: EventTarget | null) => {
+      const node = t as HTMLElement | null;
+      return node === el || !!node?.classList?.contains("canvas-bg");
+    };
+
+    const onStart = (e: TouchEvent) => {
+      const cam = useCanvasStore.getState().camera;
+      if (e.touches.length === 1) {
+        if (!isBackground(e.target)) return;
+        mode = "pan";
+        sx = e.touches[0].clientX;
+        sy = e.touches[0].clientY;
+        camX = cam.x;
+        camY = cam.y;
+      } else if (e.touches.length === 2) {
+        mode = "pinch";
+        const [a, b] = [e.touches[0], e.touches[1]];
+        startDist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1;
+        const r = el.getBoundingClientRect();
+        midX = (a.clientX + b.clientX) / 2 - r.left;
+        midY = (a.clientY + b.clientY) / 2 - r.top;
+        startZoom = cam.zoom;
+        baseX = cam.x;
+        baseY = cam.y;
+      }
+    };
+
+    const onMove = (e: TouchEvent) => {
+      if (mode === "pan" && e.touches.length === 1) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - sx;
+        const dy = e.touches[0].clientY - sy;
+        setCamera((c) => ({ x: camX + dx, y: camY + dy, zoom: c.zoom }));
+      } else if (mode === "pinch" && e.touches.length === 2) {
+        e.preventDefault();
+        const [a, b] = [e.touches[0], e.touches[1]];
+        const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+        const newZoom = clamp(
+          startZoom * (dist / startDist),
+          APP.zoom.min,
+          APP.zoom.max,
+        );
+        const real = newZoom / startZoom;
+        setCamera(() => ({
+          x: midX - real * (midX - baseX),
+          y: midY - real * (midY - baseY),
+          zoom: newZoom,
+        }));
+      }
+    };
+
+    const onEnd = (e: TouchEvent) => {
+      mode = e.touches.length === 0 ? "none" : mode === "pinch" ? "none" : mode;
+    };
+
+    el.addEventListener("touchstart", onStart, { passive: false });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd);
+    el.addEventListener("touchcancel", onEnd);
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
+    };
+  }, [setCamera]);
+
   // Canvas mousedown
   const onCanvasDown = (e: ReactMouseEvent) => {
     const target = e.target as HTMLElement;

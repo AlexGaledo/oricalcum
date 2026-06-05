@@ -3,6 +3,7 @@
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
+import { useMobileNavStore } from "@/features/navigation/store/mobile-nav.store";
 
 type NavItem = {
   id: string;
@@ -96,8 +97,15 @@ export function WorkspaceSidebar({ workspaceId }: Props) {
   const pathname = usePathname();
   const workspace = useWorkspacesStore((s) => s.workspaces.find((w) => w.id === workspaceId));
   const [collapsed, setCollapsed] = useState(false);
+  const hubNavOpen = useMobileNavStore((s) => s.hubNavOpen);
+  const closeHubNav = useMobileNavStore((s) => s.closeHubNav);
 
   const navItems = makeNavItems(workspaceId);
+
+  // Close the mobile drawer whenever the route changes (a nav item was tapped).
+  useEffect(() => {
+    closeHubNav();
+  }, [pathname, closeHubNav]);
 
   // Warm every hub route once the sidebar mounts. In dev this triggers Next's
   // on-demand compile up front, so clicking a nav item resolves fast instead of
@@ -122,6 +130,7 @@ export function WorkspaceSidebar({ workspaceId }: Props) {
     <aside
       className="ws-sidebar"
       data-collapsed={collapsed ? "1" : "0"}
+      data-mobile-open={hubNavOpen ? "1" : "0"}
       aria-label="Workspace sidebar"
     >
       {/* Header */}

@@ -3866,20 +3866,83 @@ button { font-family: inherit; }
   overflow-y: auto;
 }
 
-/* Collapsed sidebar adjustment */
+/* Hamburger trigger + drawer scrim — hidden on desktop, shown on mobile */
+.hub-breadcrumb-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hub-nav-trigger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  background: var(--surface);
+  color: var(--text-dim);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  cursor: pointer;
+}
+.hub-nav-trigger:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.hub-nav-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 34;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+/* Collapsed sidebar adjustment (desktop only) */
 @media (min-width: 768px) {
   .hub-shell:has(.ws-sidebar[data-collapsed="1"]) .hub-content {
     margin-left: 52px;
   }
 }
 
-/* Mobile: sidebar overlays */
+/* ── Mobile (≤767px): sidebar becomes a slide-in drawer ───────── */
 @media (max-width: 767px) {
   .ws-sidebar {
+    width: 248px;
+    transform: translateX(-100%);
+    transition: transform 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
+    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.4);
+  }
+  /* drawer is always full width when open — ignore desktop collapse */
+  .ws-sidebar[data-collapsed="1"] {
+    width: 248px;
+  }
+  .ws-sidebar[data-mobile-open="1"] {
     transform: translateX(0);
   }
+  /* the desktop collapse toggle is meaningless in drawer mode */
+  .ws-sidebar-toggle {
+    display: none;
+  }
+
   .hub-content {
-    margin-left: 52px;
+    margin-left: 0;
+  }
+  .hub-nav-trigger {
+    display: inline-flex;
+  }
+  .hub-nav-scrim[data-visible="1"] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .hub-breadcrumb-bar {
+    padding: 10px 14px 0;
+  }
+  .hub-main {
+    padding: 12px 14px 20px;
   }
 }
 
@@ -4318,4 +4381,155 @@ button { font-family: inherit; }
   justify-content: center;
   min-height: 60vh;
   width: 100%;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   MOBILE RESPONSIVENESS  (phones ≤767px; tablets keep desktop layout)
+   Hub responsive + canvas view-only. Sidebars → drawers, grids → 1 col.
+   ════════════════════════════════════════════════════════════════ */
+
+/* Dashboard: mobile nav trigger + drawer scrim (hidden on desktop) */
+.dash-mobile-trigger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  background: var(--surface);
+  color: var(--text-dim);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  cursor: pointer;
+}
+.dash-mobile-trigger:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.dash-nav-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+@media (max-width: 767px) {
+  /* — Dashboard — */
+  .dash {
+    overflow: visible;
+  }
+  .dash-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 240px;
+    min-width: 240px;
+    z-index: 40;
+    transform: translateX(-100%);
+    transition: transform 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
+    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.4);
+  }
+  /* On mobile the rail's desktop "collapsed" width is irrelevant — it's a drawer */
+  .dash-nav[data-open="0"] {
+    width: 240px;
+    min-width: 240px;
+    transform: translateX(-100%);
+  }
+  .dash-nav[data-open="1"] {
+    transform: translateX(0);
+  }
+  /* the in-drawer appname/labels always show when the drawer is open */
+  .dash-nav[data-open="0"] .nav-lbl,
+  .dash-nav[data-open="0"] .dash-nav-appname {
+    display: inline;
+  }
+  .dash-nav-scrim[data-visible="1"] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .dash-mobile-trigger {
+    display: inline-flex;
+  }
+  .dash-header {
+    gap: 10px;
+    padding: 12px 14px 10px;
+  }
+  .dash-header h2 {
+    margin-right: auto;
+  }
+  .dash-new-btn {
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+  .dash-body {
+    padding: 16px 14px;
+  }
+  .ws-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .dash-usage-stats {
+    flex-wrap: wrap;
+  }
+
+  /* — Login / auth — */
+  .min-h-screen .w-full.max-w-sm {
+    padding: 24px 20px;
+  }
+
+  /* — Hub sub-pages: keep wide content from overflowing — */
+  .hub-section-head {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .hub-view {
+    min-width: 0;
+  }
+  /* storage / people tables scroll horizontally instead of breaking layout */
+  .storage-browser,
+  .hub-table-wrap {
+    overflow-x: auto;
+  }
+}
+
+/* Scrim behind the canvas file-explorer drawer on mobile */
+.canvas-drawer-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 29;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+}
+
+/* ── Graphspace (canvas) on mobile: view-only, editing chrome hidden ──── */
+@media (max-width: 767px) {
+  /* Editing-only chrome is useless in view-only mode — hide it. */
+  .toolbar,
+  .statusbar,
+  .minimap,
+  .ai-bar,
+  .twk-panel {
+    display: none !important;
+  }
+
+  /* File-explorer drawer: narrower, full height under the topbar. */
+  .file-explorer {
+    width: min(82vw, 280px);
+    top: 52px;
+  }
+
+  /* Assistant chat → bottom sheet spanning the width. */
+  .assistant-panel {
+    left: 10px;
+    right: 10px;
+    bottom: 72px;
+    width: auto;
+    max-width: none;
+    height: min(70vh, 520px);
+  }
 }

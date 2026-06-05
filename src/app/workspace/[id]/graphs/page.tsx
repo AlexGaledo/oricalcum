@@ -20,15 +20,20 @@ import { AiInputBar } from "@/features/ai-input";
 import { CalendarView } from "@/features/calendar";
 import { AssistantPanel } from "@/features/assistant";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
+import { useCanvasStore } from "@/features/canvas/store/canvas.store";
 import { usePersistence } from "@/features/canvas/hooks/use-persistence";
 import { fetchProject, createProject } from "@/data/api/endpoints/projects.api";
 import { ApiError } from "@/data/api/api.types";
 import { supabase } from "@/lib/supabase";
+import { useIsMobile } from "@/shared/hooks/use-is-mobile";
 
 export default function GraphsCanvasPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const workspace = useWorkspacesStore((s) => s.workspaces.find((w) => w.id === id));
+  const isMobile = useIsMobile();
+  const fileTreeOpen = useCanvasStore((s) => s.fileTreeOpen);
+  const setFileTreeOpen = useCanvasStore((s) => s.setFileTreeOpen);
   const [authed, setAuthed] = useState(false);
   const [projectSynced, setProjectSynced] = useState(false);
 
@@ -80,8 +85,16 @@ export default function GraphsCanvasPage() {
           <span className="reticle br" />
         </div>
 
-        <Canvas />
+        <Canvas readOnly={isMobile} />
         <Topbar />
+        {/* Scrim for the file-explorer drawer on mobile */}
+        {isMobile && fileTreeOpen && (
+          <div
+            className="canvas-drawer-scrim"
+            onClick={() => setFileTreeOpen(false)}
+            aria-hidden="true"
+          />
+        )}
         <FileExplorer />
         <Toolbar />
         <ConnectBanner />

@@ -9,6 +9,7 @@ import { APP } from "@/config/app.config";
 import { useAsyncAction } from "@/shared/hooks/use-async-action";
 import { Spinner } from "@/shared/components/ui/spinner";
 import { Skeleton } from "@/shared/components/ui/skeleton";
+import { useIsMobile } from "@/shared/hooks/use-is-mobile";
 
 type NavSection = "workspaces" | "recent" | "templates" | "settings" | "usage";
 
@@ -23,8 +24,21 @@ export default function DashboardPage() {
   const { workspaces, createWorkspace, deleteWorkspace, updateMeta, openWorkspace, fetchWorkspaces, isLoading, isOffline } = useWorkspacesStore();
 
   const navGuard = useRef(false);
+  const isMobile = useIsMobile();
   const [navOpen, setNavOpen] = useState(true);
   const [section, setSection] = useState<NavSection>("workspaces");
+
+  // The nav is an in-flow rail on desktop but a slide-in drawer on phones.
+  // Default it closed on mobile so it doesn't cover the workspace grid.
+  useEffect(() => {
+    setNavOpen(!isMobile);
+  }, [isMobile]);
+
+  // On mobile, picking a section should close the drawer.
+  const selectSection = (s: NavSection) => {
+    setSection(s);
+    if (isMobile) setNavOpen(false);
+  };
   const [modalOpen, setModalOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
@@ -86,18 +100,36 @@ export default function DashboardPage() {
         </div>
 
         <div className="dash-nav-items">
-          <NavItem icon={<GridIcon />} label="Workspaces" active={section === "workspaces"} onClick={() => setSection("workspaces")} />
-          <NavItem icon={<ClockIcon />} label="Recent" active={section === "recent"} onClick={() => setSection("recent")} />
-          <NavItem icon={<TemplateIcon />} label="Templates" active={section === "templates"} onClick={() => setSection("templates")} />
+          <NavItem icon={<GridIcon />} label="Workspaces" active={section === "workspaces"} onClick={() => selectSection("workspaces")} />
+          <NavItem icon={<ClockIcon />} label="Recent" active={section === "recent"} onClick={() => selectSection("recent")} />
+          <NavItem icon={<TemplateIcon />} label="Templates" active={section === "templates"} onClick={() => selectSection("templates")} />
           <div className="dash-nav-divider" />
-          <NavItem icon={<GearIcon />} label="Settings" active={section === "settings"} onClick={() => setSection("settings")} />
-          <NavItem icon={<ChartIcon />} label="Usage" active={section === "usage"} onClick={() => setSection("usage")} />
+          <NavItem icon={<GearIcon />} label="Settings" active={section === "settings"} onClick={() => selectSection("settings")} />
+          <NavItem icon={<ChartIcon />} label="Usage" active={section === "usage"} onClick={() => selectSection("usage")} />
         </div>
       </nav>
+
+      {/* Scrim behind the mobile nav drawer */}
+      <div
+        className="dash-nav-scrim"
+        data-visible={isMobile && navOpen ? "1" : "0"}
+        onClick={() => setNavOpen(false)}
+        aria-hidden="true"
+      />
 
       {/* Main */}
       <div className="dash-main">
         <div className="dash-header">
+          <button
+            type="button"
+            className="dash-mobile-trigger"
+            onClick={() => setNavOpen((v) => !v)}
+            aria-label="Open navigation"
+          >
+            <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+              <path d="M2 4h12M2 8h12M2 12h12" />
+            </svg>
+          </button>
           <h2>// {section}</h2>
           {(section === "workspaces" || section === "recent") && (
             <button type="button" className="dash-new-btn" onClick={() => setModalOpen(true)}>

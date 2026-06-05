@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Lora, Space_Grotesk, Caveat } from "next/font/google";
 import { Providers } from "@/providers";
 import "./globals.css";
@@ -37,6 +37,14 @@ const caveat = Caveat({
 export const metadata: Metadata = {
   title: "Oricalcum",
   description: "Visual systems canvas — nodes, edges, themes.",
+};
+
+// Mobile-first viewport. Zoom stays enabled (accessibility); the canvas page
+// manages its own pinch behavior. viewport-fit covers notched devices.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
