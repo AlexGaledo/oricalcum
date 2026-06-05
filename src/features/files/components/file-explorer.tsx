@@ -71,7 +71,7 @@ export function FileExplorer() {
       aria-hidden={!open || hideAll}
     >
       <div className="file-explorer-header">
-        <span>// files</span>
+        <span>// Nodespaces</span>
         <div className="file-explorer-actions">
           <button
             type="button"
