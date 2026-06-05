@@ -11,6 +11,7 @@ import { Spinner } from "@/shared/components/ui/spinner";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { useIsMobile } from "@/shared/hooks/use-is-mobile";
 import { Logo } from "@/shared/components/icons/logo";
+import { supabase } from "@/lib/supabase";
 
 type NavSection = "workspaces" | "recent" | "templates" | "settings" | "usage";
 
@@ -63,6 +64,11 @@ export default function DashboardPage() {
     setNewColor(ACCENT_SWATCHES[0]);
   });
 
+  const { run: handleLogout, pending: loggingOut } = useAsyncAction(async () => {
+    await supabase.auth.signOut();
+    router.replace("/login");
+  });
+
   const { run: createFromTemplate, pending: creatingTemplate } = useAsyncAction(
     (t: (typeof TEMPLATES)[number]) =>
       t.id === "tutorial"
@@ -108,6 +114,15 @@ export default function DashboardPage() {
           <div className="dash-nav-divider" />
           <NavItem icon={<GearIcon />} label="Settings" active={section === "settings"} onClick={() => selectSection("settings")} />
           <NavItem icon={<ChartIcon />} label="Usage" active={section === "usage"} onClick={() => selectSection("usage")} />
+        </div>
+
+        <div className="dash-nav-footer">
+          <NavItem
+            icon={<LogoutIcon />}
+            label={loggingOut ? "Logging out…" : "Log out"}
+            active={false}
+            onClick={handleLogout}
+          />
         </div>
       </nav>
 
@@ -335,6 +350,16 @@ function ChartIcon() {
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
       <path d="M2 12l3.5-4 3 2.5 3-5.5 2.5 3" strokeLinecap="round" strokeLinejoin="round" />
       <line x1="2" y1="14" x2="14" y2="14" />
+    </svg>
+  );
+}
+
+function LogoutIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 14H3.5A1.5 1.5 0 0 1 2 12.5v-9A1.5 1.5 0 0 1 3.5 2H6" />
+      <path d="M10.5 11 14 7.5 10.5 4" />
+      <line x1="14" y1="7.5" x2="6" y2="7.5" />
     </svg>
   );
 }
