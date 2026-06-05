@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { streamChat } from "@/data/api/endpoints/chat.api";
 import { useCanvasStore } from "@/features/canvas";
 import { useCalendarStore } from "@/features/calendar/store/calendar.store";
+import { useFilesStore } from "@/features/files/store/files.store";
 import type { AssistantState, ChatMessage } from "../types/assistant.types";
 
 interface AssistantStore extends AssistantState {
@@ -57,6 +58,16 @@ export const useAssistantStore = create<AssistantStore>((set, get) => ({
       error: null,
     }));
 
+    // Tell the assistant which nodespaces (explorer files) exist and which is
+    // open, so it can identify them by title. Only the open one's nodes are
+    // loaded server-side, so it acts there and asks to switch for others.
+    const fs = useFilesStore.getState();
+    const files = fs.tree.filter((n) => n.kind === "file");
+    const context = {
+      active: files.find((f) => f.id === fs.activeFileId)?.name ?? null,
+      names: files.map((f) => f.name),
+    };
+
     abort = streamChat(projectId, content, {
       onToken: (delta) =>
         set((s) => ({
@@ -85,6 +96,6 @@ export const useAssistantStore = create<AssistantStore>((set, get) => ({
         useCanvasStore.getState().requestReload();
         void useCalendarStore.getState().fetchEvents(projectId);
       },
-    });
+    }, context);
   },
 }));

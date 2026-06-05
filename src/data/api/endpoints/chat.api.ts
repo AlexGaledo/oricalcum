@@ -1,5 +1,14 @@
 import { apiClient } from "./api-client";
 
+/** Nodespace awareness passed to the assistant each turn. Nodespaces are the
+ *  files in the explorer; only the active one's nodes are loaded server-side. */
+export interface ChatContext {
+  /** Name (title) of the currently open nodespace. */
+  active: string | null;
+  /** Titles of every nodespace (file) in this workspace. */
+  names: string[];
+}
+
 export interface ChatStreamHandlers {
   /** Called for each streamed token delta from the assistant. */
   onToken: (delta: string) => void;
@@ -23,6 +32,7 @@ export function streamChat(
   projectId: string,
   message: string,
   handlers: ChatStreamHandlers,
+  context?: ChatContext,
 ): () => void {
   const controller = new AbortController();
 
@@ -30,7 +40,7 @@ export function streamChat(
     try {
       const res = await apiClient.stream(
         `/projects/${projectId}/chat`,
-        { message },
+        { message, context },
         controller.signal,
       );
       const reader = res.body!.getReader();
