@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { Canvas, Minimap } from "@/features/canvas";
 import { SpawnGhost } from "@/features/nodes";
 import { EditorPanel } from "@/features/documents";
@@ -24,33 +24,19 @@ import { useCanvasStore } from "@/features/canvas/store/canvas.store";
 import { usePersistence } from "@/features/canvas/hooks/use-persistence";
 import { fetchProject, createProject } from "@/data/api/endpoints/projects.api";
 import { ApiError } from "@/data/api/api.types";
-import { supabase } from "@/lib/supabase";
 import { useIsMobile } from "@/shared/hooks/use-is-mobile";
 
 export default function GraphsCanvasPage() {
-  const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const workspace = useWorkspacesStore((s) => s.workspaces.find((w) => w.id === id));
   const isMobile = useIsMobile();
   const fileTreeOpen = useCanvasStore((s) => s.fileTreeOpen);
   const setFileTreeOpen = useCanvasStore((s) => s.setFileTreeOpen);
-  const [authed, setAuthed] = useState(false);
   const [projectSynced, setProjectSynced] = useState(false);
-
-  // explicit auth guard — redirect to login if no session
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        router.replace("/login");
-      } else {
-        setAuthed(true);
-      }
-    });
-  }, [router]);
 
   // sync workspace to backend as a project (seed if missing)
   useEffect(() => {
-    if (!authed || !id) return;
+    if (!id) return;
     setProjectSynced(false);
 
     fetchProject(id)
@@ -68,11 +54,9 @@ export default function GraphsCanvasPage() {
           console.error("Failed to sync project:", err);
         }
       });
-  }, [authed, id, workspace?.name, workspace?.description]);
+  }, [id, workspace?.name, workspace?.description]);
 
   usePersistence(projectSynced ? id : null);
-
-  if (!authed) return null;
 
   return (
     <>

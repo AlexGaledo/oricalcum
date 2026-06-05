@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import { Logo } from "@/shared/components/icons/logo";
 
 export default function Home() {
@@ -10,10 +11,15 @@ export default function Home() {
 
   useEffect(() => {
     const startFade = window.setTimeout(() => setFadeOut(true), 600);
-    const navigate = window.setTimeout(() => router.push("/dashboard"), 900);
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const destination = session ? "/dashboard" : "/login";
+      const navigate = window.setTimeout(() => router.push(destination), 900);
+      return () => window.clearTimeout(navigate);
+    });
+
     return () => {
       window.clearTimeout(startFade);
-      window.clearTimeout(navigate);
     };
   }, [router]);
 
