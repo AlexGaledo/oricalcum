@@ -12,6 +12,10 @@ import {
   patchProject,
   deleteProject,
 } from "@/data/api/endpoints/projects.api";
+import { createNode } from "@/data/api/endpoints/nodes.api";
+import { createEdge } from "@/data/api/endpoints/edges.api";
+import { nodeToBackend, edgeToBackend } from "@/features/canvas/utils/entity-mappers";
+import { buildTutorial, TUTORIAL_META } from "../constants/tutorial";
 import type { WorkspaceRecord } from "../types/workspaces.types";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
@@ -96,6 +100,8 @@ interface WorkspacesStore {
   activeId: string | null;
   /** User id the cached workspaces belong to — guards against cross-user leakage. */
   currentUserId: string | null;
+  /** User id we already seeded the Getting Started tutorial for — so it's seeded once. */
+  tutorialSeededFor: string | null;
   isLoading: boolean;
   error: string | null;
   isOffline: boolean;
@@ -107,6 +113,8 @@ interface WorkspacesStore {
   /** Hydrate from backend, falling back to local cache. */
   fetchWorkspaces: () => Promise<void>;
   createWorkspace: (name: string, description?: string, accentColor?: string) => Promise<void>;
+  /** Create the pre-built "Getting Started" tutorial workspace (project + nodes + edges). */
+  seedTutorialWorkspace: () => Promise<string>;
   deleteWorkspace: (id: string) => Promise<void>;
   updateMeta: (id: string, patch: Partial<Pick<WorkspaceRecord, "name" | "description" | "accentColor" | "avatar">>) => Promise<void>;
   loadWorkspace: (id: string) => void;
@@ -120,6 +128,7 @@ export const useWorkspacesStore = create<WorkspacesStore>()(
       workspaces: [],
       activeId: null,
       currentUserId: null,
+      tutorialSeededFor: null,
       isLoading: false,
       error: null,
       isOffline: false,
@@ -152,6 +161,20 @@ export const useWorkspacesStore = create<WorkspacesStore>()(
             isLoading: false,
             isOffline: false,
           });
+
+          // First-run onboarding: a brand-new user (no workspaces) gets the
+          // Getting Started tutorial seeded once. Set the flag before the async
+          // seed so a rapid re-mount can't create it twice. Only runs here, in
+          // the online success path — a failed fetch never seeds.
+          const st = get();
+          if (
+            st.currentUserId &&
+            st.workspaces.length === 0 &&
+            st.tutorialSeededFor !== st.currentUserId
+          ) {
+            set({ tutorialSeededFor: st.currentUserId });
+            await get().seedTutorialWorkspace();
+          }
         } catch (err) {
           console.error("Failed to fetch workspaces:", err);
           // Security: when we can't verify ownership with the backend, show
@@ -197,6 +220,40 @@ export const useWorkspacesStore = create<WorkspacesStore>()(
         } finally {
           creatingWorkspace = false;
         }
+      },
+
+      seedTutorialWorkspace: async () => {
+        const { nodes, edges } = buildTutorial();
+        const now = Date.now();
+        const ws: WorkspaceRecord = {
+          id: uid("ws"),
+          name: TUTORIAL_META.name,
+          description: TUTORIAL_META.description,
+          accentColor: TUTORIAL_META.accentColor,
+          createdAt: now,
+          updatedAt: now,
+          nodeCount: nodes.length,
+          userCount: 1,
+          nodes,
+          edges,
+          camera: { x: 0, y: 0, zoom: 1 },
+        };
+
+        // Optimistic local insert so the dashboard card appears immediately.
+        set((s) => ({ workspaces: [...s.workspaces, ws] }));
+
+        try {
+          await createProject(workspaceToCreatePayload(ws));
+          // Nodes first (edges reference them via FK), then edges.
+          await Promise.all(nodes.map((n) => createNode(ws.id, nodeToBackend(n))));
+          await Promise.all(edges.map((e) => createEdge(ws.id, edgeToBackend(e))));
+          set({ isOffline: false });
+        } catch (err) {
+          console.error("Failed to seed tutorial workspace:", err);
+          set({ isOffline: true });
+          // Keep the local copy; it shows as unsynced.
+        }
+        return ws.id;
       },
 
       deleteWorkspace: async (id) => {
@@ -290,6 +347,7 @@ export const useWorkspacesStore = create<WorkspacesStore>()(
         workspaces: s.workspaces,
         activeId: s.activeId,
         currentUserId: s.currentUserId,
+        tutorialSeededFor: s.tutorialSeededFor,
       }),
     },
   ),

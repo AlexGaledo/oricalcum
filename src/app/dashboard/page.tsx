@@ -15,6 +15,7 @@ import { Logo } from "@/shared/components/icons/logo";
 type NavSection = "workspaces" | "recent" | "templates" | "settings" | "usage";
 
 const TEMPLATES = [
+  { id: "tutorial", name: "Getting Started", description: "A guided tour of Oricalcum" },
   { id: "empty", name: "Empty Canvas", description: "Blank slate to start fresh" },
   { id: "mindmap", name: "Mind Map", description: "Radial brainstorming layout" },
   { id: "project", name: "Project Plan", description: "Structured flow for projects" },
@@ -22,7 +23,7 @@ const TEMPLATES = [
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { workspaces, createWorkspace, deleteWorkspace, updateMeta, openWorkspace, fetchWorkspaces, isLoading, isOffline } = useWorkspacesStore();
+  const { workspaces, createWorkspace, seedTutorialWorkspace, deleteWorkspace, updateMeta, openWorkspace, fetchWorkspaces, isLoading, isOffline } = useWorkspacesStore();
 
   const navGuard = useRef(false);
   const isMobile = useIsMobile();
@@ -63,7 +64,10 @@ export default function DashboardPage() {
   });
 
   const { run: createFromTemplate, pending: creatingTemplate } = useAsyncAction(
-    (t: (typeof TEMPLATES)[number]) => createWorkspace(t.name, t.description, ACCENT_SWATCHES[0]),
+    (t: (typeof TEMPLATES)[number]) =>
+      t.id === "tutorial"
+        ? seedTutorialWorkspace().then(() => undefined)
+        : createWorkspace(t.name, t.description, ACCENT_SWATCHES[0]),
   );
 
   const handleOpenWorkspace = (id: string) => {
