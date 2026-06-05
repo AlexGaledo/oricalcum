@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useAssistantStore } from "../store/assistant.store";
+import { ChatMarkdown } from "./chat-markdown";
 
 interface Props {
   workspaceId: string;
@@ -79,7 +80,17 @@ export function ChatspaceView({ workspaceId }: Props) {
         {messages.map((m) => (
           <div key={m.id} className={`chatspace-msg chatspace-msg-${m.role}`}>
             <div className="chatspace-bubble">
-              {m.content || (m.pending ? <Dots /> : "")}
+              {m.content ? (
+                m.role === "assistant" ? (
+                  <ChatMarkdown text={m.content} />
+                ) : (
+                  m.content
+                )
+              ) : m.pending ? (
+                <Dots />
+              ) : (
+                ""
+              )}
             </div>
           </div>
         ))}

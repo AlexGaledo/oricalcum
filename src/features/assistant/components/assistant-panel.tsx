@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
 import { useThemeStore } from "@/features/themes/store/theme.store";
 import { useAssistantStore } from "../store/assistant.store";
+import { ChatMarkdown } from "./chat-markdown";
 
 function SparkIcon() {
   return (
@@ -129,7 +130,17 @@ export function AssistantPanel() {
               {messages.map((m) => (
                 <div key={m.id} className={`assistant-msg assistant-msg-${m.role}`}>
                   <div className="assistant-bubble">
-                    {m.content || (m.pending ? <Dots /> : "")}
+                    {m.content ? (
+                      m.role === "assistant" ? (
+                        <ChatMarkdown text={m.content} />
+                      ) : (
+                        m.content
+                      )
+                    ) : m.pending ? (
+                      <Dots />
+                    ) : (
+                      ""
+                    )}
                   </div>
                 </div>
               ))}
