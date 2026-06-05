@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 export type ShapeId =
   | "rectangle"
   | "circle"
@@ -31,6 +33,55 @@ export interface OriNode {
   updatedAt: number;
   color?: string;
   opacity?: number;
+  /** Per-node animation overrides. When undefined, fall back to global theme. Client-only (not persisted yet). */
+  floating?: boolean;
+  pulsing?: boolean;
+}
+
+export interface ContextMenuActionItem {
+  kind: "action";
+  id: string;
+  label: string;
+  icon?: ReactNode;
+  danger?: boolean;
+  disabled?: boolean;
+  onSelect: () => void;
+}
+export interface ContextMenuCheckboxItem {
+  kind: "checkbox";
+  id: string;
+  label: string;
+  icon?: ReactNode;
+  checked: boolean;
+  onSelect: () => void;
+}
+export interface ContextMenuSubmenuItem {
+  kind: "submenu";
+  id: string;
+  label: string;
+  icon?: ReactNode;
+  items: ContextMenuItem[];
+}
+export interface ContextMenuCustomItem {
+  kind: "custom";
+  id: string;
+  render: ReactNode;
+}
+export interface ContextMenuSeparatorItem {
+  kind: "separator";
+  id: string;
+}
+export type ContextMenuItem =
+  | ContextMenuActionItem
+  | ContextMenuCheckboxItem
+  | ContextMenuSubmenuItem
+  | ContextMenuCustomItem
+  | ContextMenuSeparatorItem;
+
+export interface ContextMenuState {
+  x: number;
+  y: number;
+  items: ContextMenuItem[];
 }
 
 export interface OriEdge {

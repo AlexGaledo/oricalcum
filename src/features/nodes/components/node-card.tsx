@@ -16,6 +16,7 @@ interface NodeCardProps {
   pulsing: boolean;
   onPointerDown: (e: MouseEvent) => void;
   onDoubleClick: (e: MouseEvent) => void;
+  onContextMenu: (e: MouseEvent) => void;
   onPortDown: (e: MouseEvent, side: PortSide) => void;
   onResizeDown: (e: MouseEvent) => void;
 }
@@ -24,7 +25,7 @@ const PORT_SIDES: PortSide[] = ["top", "right", "bottom", "left"];
 
 export function NodeCard({
   node, isSelected, isConnectSource, isDragging, floating, pulsing,
-  onPointerDown, onDoubleClick, onPortDown, onResizeDown,
+  onPointerDown, onDoubleClick, onContextMenu, onPortDown, onResizeDown,
 }: NodeCardProps) {
   const hasShapeBg =
     node.shape === "hexagon" || node.shape === "diamond" || node.shape === "cloud";
@@ -79,6 +80,7 @@ export function NodeCard({
       style={nodeStyle}
       onMouseDown={onPointerDown}
       onDoubleClick={onDoubleClick}
+      onContextMenu={onContextMenu}
     >
       <NodeShapeBg shape={node.shape} width={node.w} height={node.h} />
       <span className="node-inner">{node.title || "untitled"}</span>

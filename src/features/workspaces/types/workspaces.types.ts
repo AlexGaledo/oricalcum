@@ -5,6 +5,8 @@ export interface WorkspaceRecord {
   name: string;
   description: string;
   accentColor: string;
+  /** Durable media URL for the workspace avatar (S3-backed), if set. */
+  avatar?: string;
   createdAt: number;
   updatedAt: number;
   nodeCount: number;

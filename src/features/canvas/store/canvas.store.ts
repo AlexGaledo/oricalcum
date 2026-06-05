@@ -34,6 +34,10 @@ interface CanvasStore {
   setTweaksOpen: (b: boolean | ((b: boolean) => boolean)) => void;
   setOpenDocId: (id: string | null) => void;
   setDocExpanded: (b: boolean) => void;
+  /** Bumped to ask usePersistence to re-hydrate the canvas from the backend
+   *  (e.g. after the assistant edits nodes/edges server-side). */
+  reloadNonce: number;
+  requestReload: () => void;
 }
 
 export const useCanvasStore = create<CanvasStore>((set) => ({
@@ -56,7 +60,7 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
   setToolbarPos: (p) => set({ toolbarPos: p }),
   aiBarPosX: null,
   setAiBarPosX: (x) => set({ aiBarPosX: x }),
-  fileTreeOpen: false,
+  fileTreeOpen: true,
   setFileTreeOpen: (b) =>
     set((s) => ({
       fileTreeOpen: typeof b === "function" ? b(s.fileTreeOpen) : b,
@@ -79,4 +83,6 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     set((s) => ({ tweaksOpen: typeof b === "function" ? b(s.tweaksOpen) : b })),
   setOpenDocId: (id) => set({ openDocId: id, docExpanded: false }),
   setDocExpanded: (b) => set({ docExpanded: b }),
+  reloadNonce: 0,
+  requestReload: () => set((s) => ({ reloadNonce: s.reloadNonce + 1 })),
 }));

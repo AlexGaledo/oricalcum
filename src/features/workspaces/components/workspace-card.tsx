@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { fetchNodes } from "@/data/api/endpoints/nodes.api";
+import { fetchEdges } from "@/data/api/endpoints/edges.api";
+import { fetchProject } from "@/data/api/endpoints/projects.api";
+import { prefetchCache } from "@/shared/lib/prefetch-cache";
 import type { WorkspaceRecord } from "../types/workspaces.types";
 
 function relativeTime(ms: number): string {
@@ -27,6 +31,36 @@ export function WorkspaceCard({ workspace, onClick, onDelete, onRename }: Props)
   const [nameVal, setNameVal] = useState(workspace.name);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleHoverStart = () => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    if (prefetchCache.has(workspace.id)) return;
+    hoverTimer.current = setTimeout(() => {
+      Promise.all([
+        fetchNodes(workspace.id),
+        fetchEdges(workspace.id),
+        fetchProject(workspace.id),
+      ])
+        .then(([nodes, edges, project]) => {
+          prefetchCache.set(workspace.id, {
+            nodes: nodes as Record<string, unknown>[],
+            edges: edges as Record<string, unknown>[],
+            project: project as Record<string, unknown>,
+          });
+        })
+        .catch(() => {
+          /* prefetch failure is non-critical */
+        });
+    }, 300);
+  };
+
+  const handleHoverEnd = () => {
+    if (hoverTimer.current) {
+      clearTimeout(hoverTimer.current);
+      hoverTimer.current = null;
+    }
+  };
 
   useEffect(() => {
     if (renaming) inputRef.current?.focus();
@@ -51,7 +85,7 @@ export function WorkspaceCard({ workspace, onClick, onDelete, onRename }: Props)
   };
 
   return (
-    <div className="ws-card" onClick={renaming ? undefined : onClick}>
+    <div className="ws-card" onClick={renaming ? undefined : onClick} onMouseEnter={handleHoverStart} onMouseLeave={handleHoverEnd}>
       <div className="ws-card-accent" style={{ background: workspace.accentColor }} />
       <div className="ws-card-body">
         {renaming ? (

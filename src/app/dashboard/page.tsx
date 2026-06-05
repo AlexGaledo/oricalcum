@@ -1,15 +1,22 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
 import { WorkspaceCard } from "@/features/workspaces/components/workspace-card";
 import { ACCENT_SWATCHES } from "@/config/theme.config";
 import { APP } from "@/config/app.config";
+import { useAsyncAction } from "@/shared/hooks/use-async-action";
+import { Spinner } from "@/shared/components/ui/spinner";
+import { Skeleton } from "@/shared/components/ui/skeleton";
+import { useIsMobile } from "@/shared/hooks/use-is-mobile";
+import { Logo } from "@/shared/components/icons/logo";
+import { supabase } from "@/lib/supabase";
 
 type NavSection = "workspaces" | "recent" | "templates" | "settings" | "usage";
 
 const TEMPLATES = [
+  { id: "tutorial", name: "Getting Started", description: "A guided tour of Oricalcum" },
   { id: "empty", name: "Empty Canvas", description: "Blank slate to start fresh" },
   { id: "mindmap", name: "Mind Map", description: "Radial brainstorming layout" },
   { id: "project", name: "Project Plan", description: "Structured flow for projects" },
@@ -17,28 +24,57 @@ const TEMPLATES = [
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { workspaces, createWorkspace, deleteWorkspace, updateMeta, openWorkspace } = useWorkspacesStore();
+  const { workspaces, createWorkspace, seedTutorialWorkspace, deleteWorkspace, updateMeta, openWorkspace, fetchWorkspaces, isLoading, isOffline } = useWorkspacesStore();
 
   const navGuard = useRef(false);
+  const isMobile = useIsMobile();
   const [navOpen, setNavOpen] = useState(true);
   const [section, setSection] = useState<NavSection>("workspaces");
+
+  // The nav is an in-flow rail on desktop but a slide-in drawer on phones.
+  // Default it closed on mobile so it doesn't cover the workspace grid.
+  useEffect(() => {
+    setNavOpen(!isMobile);
+  }, [isMobile]);
+
+  // On mobile, picking a section should close the drawer.
+  const selectSection = (s: NavSection) => {
+    setSection(s);
+    if (isMobile) setNavOpen(false);
+  };
   const [modalOpen, setModalOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newColor, setNewColor] = useState(ACCENT_SWATCHES[0]);
   const [transitioning, setTransitioning] = useState(false);
 
+  useEffect(() => {
+    fetchWorkspaces();
+  }, [fetchWorkspaces]);
+
   const sorted = [...workspaces].sort((a, b) => b.updatedAt - a.updatedAt);
   const recent = sorted.slice(0, 5);
 
-  const handleCreate = () => {
+  const { run: handleCreate, pending: creating } = useAsyncAction(async () => {
     if (!newName.trim()) return;
-    createWorkspace(newName.trim(), newDesc.trim(), newColor);
+    await createWorkspace(newName.trim(), newDesc.trim(), newColor);
     setModalOpen(false);
     setNewName("");
     setNewDesc("");
     setNewColor(ACCENT_SWATCHES[0]);
-  };
+  });
+
+  const { run: handleLogout, pending: loggingOut } = useAsyncAction(async () => {
+    await supabase.auth.signOut();
+    router.replace("/login");
+  });
+
+  const { run: createFromTemplate, pending: creatingTemplate } = useAsyncAction(
+    (t: (typeof TEMPLATES)[number]) =>
+      t.id === "tutorial"
+        ? seedTutorialWorkspace().then(() => undefined)
+        : createWorkspace(t.name, t.description, ACCENT_SWATCHES[0]),
+  );
 
   const handleOpenWorkspace = (id: string) => {
     if (navGuard.current) return;
@@ -56,11 +92,8 @@ export default function DashboardPage() {
       {/* Left nav */}
       <nav className="dash-nav" data-open={navOpen ? "1" : "0"} aria-label="Dashboard navigation">
         <div className="dash-nav-top">
-          <div className="brand-mark" style={{ width: 20, height: 20, color: "var(--accent)" }}>
-            <svg viewBox="0 0 12 12" fill="none">
-              <path d="M3 1 L9 1 L11 6 L9 11 L3 11 L1 6 Z" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
-              <circle cx="6" cy="6" r="1.4" fill="currentColor" />
-            </svg>
+          <div className="brand-mark" style={{ width: 20, height: 20 }}>
+            <Logo />
           </div>
           {navOpen && <span className="dash-nav-appname">{APP.name}</span>}
           <button
@@ -75,18 +108,45 @@ export default function DashboardPage() {
         </div>
 
         <div className="dash-nav-items">
-          <NavItem icon={<GridIcon />} label="Workspaces" active={section === "workspaces"} onClick={() => setSection("workspaces")} />
-          <NavItem icon={<ClockIcon />} label="Recent" active={section === "recent"} onClick={() => setSection("recent")} />
-          <NavItem icon={<TemplateIcon />} label="Templates" active={section === "templates"} onClick={() => setSection("templates")} />
+          <NavItem icon={<GridIcon />} label="Workspaces" active={section === "workspaces"} onClick={() => selectSection("workspaces")} />
+          <NavItem icon={<ClockIcon />} label="Recent" active={section === "recent"} onClick={() => selectSection("recent")} />
+          <NavItem icon={<TemplateIcon />} label="Templates" active={section === "templates"} onClick={() => selectSection("templates")} />
           <div className="dash-nav-divider" />
-          <NavItem icon={<GearIcon />} label="Settings" active={section === "settings"} onClick={() => setSection("settings")} />
-          <NavItem icon={<ChartIcon />} label="Usage" active={section === "usage"} onClick={() => setSection("usage")} />
+          <NavItem icon={<GearIcon />} label="Settings" active={section === "settings"} onClick={() => selectSection("settings")} />
+          <NavItem icon={<ChartIcon />} label="Usage" active={section === "usage"} onClick={() => selectSection("usage")} />
+        </div>
+
+        <div className="dash-nav-footer">
+          <NavItem
+            icon={<LogoutIcon />}
+            label={loggingOut ? "Logging out…" : "Log out"}
+            active={false}
+            onClick={handleLogout}
+          />
         </div>
       </nav>
+
+      {/* Scrim behind the mobile nav drawer */}
+      <div
+        className="dash-nav-scrim"
+        data-visible={isMobile && navOpen ? "1" : "0"}
+        onClick={() => setNavOpen(false)}
+        aria-hidden="true"
+      />
 
       {/* Main */}
       <div className="dash-main">
         <div className="dash-header">
+          <button
+            type="button"
+            className="dash-mobile-trigger"
+            onClick={() => setNavOpen((v) => !v)}
+            aria-label="Open navigation"
+          >
+            <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+              <path d="M2 4h12M2 8h12M2 12h12" />
+            </svg>
+          </button>
           <h2>// {section}</h2>
           {(section === "workspaces" || section === "recent") && (
             <button type="button" className="dash-new-btn" onClick={() => setModalOpen(true)}>
@@ -100,10 +160,21 @@ export default function DashboardPage() {
         </div>
 
         <div className="dash-body">
+          {isOffline && (
+            <div className="dash-offline-banner">
+              <span>●</span> Offline — changes will sync when you reconnect
+            </div>
+          )}
           {(section === "workspaces" || section === "recent") && (
             <>
               <div className="dash-section-title">{section === "recent" ? "Recently opened" : "All workspaces"}</div>
-              {displayed.length === 0 ? (
+              {isLoading && displayed.length === 0 ? (
+                <div className="ws-grid">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <Skeleton key={i} height={132} radius={12} />
+                  ))}
+                </div>
+              ) : displayed.length === 0 ? (
                 <div className="dash-empty">No workspaces yet. Create one to get started.</div>
               ) : (
                 <div className="ws-grid">
@@ -129,10 +200,9 @@ export default function DashboardPage() {
                   <div
                     key={t.id}
                     className="ws-card"
-                    onClick={() => {
-                      createWorkspace(t.name, t.description, ACCENT_SWATCHES[0]);
-                    }}
-                    style={{ cursor: "pointer" }}
+                    data-busy={creatingTemplate ? "1" : "0"}
+                    onClick={() => createFromTemplate(t)}
+                    style={{ cursor: creatingTemplate ? "wait" : "pointer", pointerEvents: creatingTemplate ? "none" : undefined }}
                   >
                     <div className="ws-card-accent" style={{ background: "var(--accent)" }} />
                     <div className="ws-card-body">
@@ -215,7 +285,9 @@ export default function DashboardPage() {
             </div>
             <div className="ws-modal-actions">
               <button type="button" className="cancel" onClick={() => setModalOpen(false)}>Cancel</button>
-              <button type="button" className="submit" onClick={handleCreate} disabled={!newName.trim()}>Create</button>
+              <button type="button" className="submit" onClick={() => handleCreate()} disabled={!newName.trim() || creating}>
+                {creating ? <Spinner /> : "Create"}
+              </button>
             </div>
           </div>
         </div>
@@ -278,6 +350,16 @@ function ChartIcon() {
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
       <path d="M2 12l3.5-4 3 2.5 3-5.5 2.5 3" strokeLinecap="round" strokeLinejoin="round" />
       <line x1="2" y1="14" x2="14" y2="14" />
+    </svg>
+  );
+}
+
+function LogoutIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 14H3.5A1.5 1.5 0 0 1 2 12.5v-9A1.5 1.5 0 0 1 3.5 2H6" />
+      <path d="M10.5 11 14 7.5 10.5 4" />
+      <line x1="14" y1="7.5" x2="6" y2="7.5" />
     </svg>
   );
 }

@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { useCanvasStore } from "@/features/canvas/store/canvas.store";
 import { useNodeStore } from "@/features/nodes/store/node.store";
 import { useEdgeStore } from "@/features/edges/store/edge.store";
+import { useCalendarStore } from "@/features/calendar/store/calendar.store";
+import { EventDetailContent } from "@/features/calendar/components/event-detail-content";
 import { TrashIcon, CloseIcon, ExpandIcon } from "@/shared/components/icons";
 import type { OriNode, ShapeId } from "@/shared/types";
 import { SHAPES } from "@/shared/constants/shapes";
@@ -11,6 +14,7 @@ import { ACCENT_SWATCHES } from "@/config/theme.config";
 import type { Editor } from "@tiptap/react";
 import { RichEditor } from "./rich-editor";
 import { EditorToolbar } from "./editor-toolbar";
+import { NodeAttachments } from "./node-attachments";
 
 const fmtTime = (ts?: number) => {
   if (!ts) return "—";
@@ -25,11 +29,12 @@ interface DocBodyProps {
   setOpenDocId: (id: string | null) => void;
   setDocExpanded: (b: boolean) => void;
   expanded: boolean;
+  projectId: string;
 }
 
 function DocBody({
   display, openDocId, updateNode, handleDelete,
-  setOpenDocId, setDocExpanded, expanded,
+  setOpenDocId, setDocExpanded, expanded, projectId,
 }: DocBodyProps) {
   const [editor, setEditor] = useState<Editor | null>(null);
   const [charCount, setCharCount] = useState(0);
@@ -194,13 +199,14 @@ function DocBody({
             </div>
           )}
         </div>
-        <EditorToolbar editor={editor} />
+        <EditorToolbar editor={editor} projectId={projectId} />
         <RichEditor
           key={display.id}
           value={display.body || ""}
           onChange={handleBodyChange}
           onEditorReady={handleEditorReady}
         />
+        {projectId && openDocId && <NodeAttachments projectId={projectId} nodeId={openDocId} />}
       </div>
       <div className="docpanel-foot">
         <span className="doc-shape-tag">{display.shape}</span>
@@ -211,6 +217,7 @@ function DocBody({
 }
 
 export function EditorPanel() {
+  const { id: projectId } = useParams<{ id: string }>();
   const openDocId = useCanvasStore((s) => s.openDocId);
   const setOpenDocId = useCanvasStore((s) => s.setOpenDocId);
   const docExpanded = useCanvasStore((s) => s.docExpanded);
@@ -219,6 +226,10 @@ export function EditorPanel() {
   const updateNode = useNodeStore((s) => s.updateNode);
   const removeNode = useNodeStore((s) => s.removeNode);
   const removeEdgesForNode = useEdgeStore((s) => s.removeEdgesForNode);
+
+  const calendarSelectedId = useCalendarStore((s) => s.selectedEventId);
+  const calendarEvents = useCalendarStore((s) => s.events);
+  const calendarSelectedEvent = calendarEvents.find((e) => e.id === calendarSelectedId);
 
   const [snapshot, setSnapshot] = useState<OriNode | null>(node);
   useEffect(() => {
@@ -242,13 +253,20 @@ export function EditorPanel() {
         handleDelete,
         setOpenDocId,
         setDocExpanded,
+        projectId,
       }
     : null;
 
+  const showCalendarEvent = !!calendarSelectedEvent;
+
   return (
     <>
-      <aside className={`docpanel${open && !docExpanded ? " is-open" : ""}`}>
-        {docBodyProps && <DocBody {...docBodyProps} expanded={false} />}
+      <aside className={`docpanel${(open || showCalendarEvent) && !docExpanded ? " is-open" : ""}`}>
+        {showCalendarEvent ? (
+          <EventDetailContent />
+        ) : docBodyProps ? (
+          <DocBody {...docBodyProps} expanded={false} />
+        ) : null}
       </aside>
 
       {open && docExpanded && docBodyProps && (

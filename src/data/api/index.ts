@@ -1,7 +1,13 @@
 export { apiClient } from "./endpoints/api-client";
 export { ApiError } from "./api.types";
-export type { ApiResponse, PaginatedResponse, SyncPayload, SyncResult } from "./api.types";
+export type { ApiResponse, PaginatedResponse } from "./api.types";
 export * from "./endpoints/nodes.api";
 export * from "./endpoints/edges.api";
 export * from "./endpoints/projects.api";
+export * from "./endpoints/snapshots.api";
+export * from "./endpoints/collaborators.api";
+export * from "./endpoints/secrets.api";
+export * from "./endpoints/calendar-events.api";
+export * from "./endpoints/chat.api";
 export * from "./endpoints/documents.api";
+export * from "./endpoints/storage.api";

@@ -2,376 +2,304 @@
 
 ## Overview
 
-This document describes how to connect Oricalcum to a backend API. The data layer in `src/data/` provides the abstraction — you supply the server, and these adapters bridge the gap.
+Oricalcum is wired to a **FastAPI backend** (`../oricalcum-api`). The backend is the **source of truth** for all canvas data; `localStorage` (the Zustand `persist` in `workspaces.store.ts`) is only an offline cache / first-run seed source.
+
+This document reflects the **current, live implementation** as of the `feature/folder-data-storing` work. Earlier drafts described a repository + sync-engine + offline-queue layer — that abstraction was **removed** in favor of a simpler backend-primary persistence hook. See [History](#history).
 
 ### Architecture at a glance
 
 ```
 ┌──────────────────────────────────────────────┐
-│                  UI Layer                     │
-│  (React components / Framer Motion)           │
+│                  UI Layer                      │
+│  (React components / Framer Motion)            │
 ├──────────────────────────────────────────────┤
-│             Zustand Stores                    │
-│  (node.store / edge.store / canvas.store)     │
+│             Zustand Stores                     │
+│  node.store / edge.store / canvas.store        │
 ├──────────────────────────────────────────────┤
-│          Repository Layer                     │
-│  (NodeRepository / EdgeRepository / ...)      │
-│  ─ wraps stores ─ adds sync metadata ─       │
+│          usePersistence hook                   │
+│  features/canvas/hooks/use-persistence.ts      │
+│  ─ hydrate on open ─ debounced diff writes ─   │
 ├──────────────────────────────────────────────┤
-│            Sync Engine                        │
-│  (SyncEngine / OfflineQueue / ConflictResolver)│
+│          Endpoint functions                    │
+│  data/api/endpoints/*.api.ts                   │
 ├──────────────────────────────────────────────┤
-│             API Client                        │
-│  (ApiClient / endpoint functions)             │
+│             API Client                         │
+│  data/api/api-client.ts (ApiClient class)      │
 ├──────────────────────────────────────────────┤
-│              Backend Server                   │
-│  (your REST / GraphQL API)                    │
+│          FastAPI Backend                       │
+│  ../oricalcum-api (SQLAlchemy + Supabase auth) │
 └──────────────────────────────────────────────┘
 ```
 
+No repository layer, no sync engine, no offline queue. Stores → `usePersistence` → endpoint fns → backend.
+
 ---
 
-## Data Models
+## Source-of-truth model
 
-### Node
+- **Open workspace** → `usePersistence(projectId)` runs `fetchNodes` + `fetchEdges` + `fetchProject`, hydrates the stores and camera. A `hydrating` flag prevents the hydration `setState` from echoing back as writes.
+- **Seed-on-empty** → if the backend returns 0 nodes/edges but the local cache (from `workspaces.store`) holds data, that local data is uploaded once. Prevents wiping existing local work on first connect.
+- **Offline fallback** → if the fetch fails, the locally-cached state is kept so the app still opens.
+- **Writes** → store subscriptions diff by id and fire **debounced per-entity REST** calls:
+  - node added/changed → coalesced create (if new) or `PATCH` (if known), 400ms debounce per id
+  - node removed → `DELETE` (immediate)
+  - edge added → create; edge removed → `DELETE`
+  - camera changed → `PATCH /projects/:id` with `{ camera }`, 600ms debounce
+- **Project meta** (name/description) → debounced `PATCH /projects/:id` from `workspace/page.tsx`.
 
-| Field | Type | Notes |
-|-------|------|-------|
-| `id` | `string` | Client-generated (uuid/nanoid) |
-| `x`, `y` | `number` | Canvas position |
-| `w`, `h` | `number` | Current dimensions |
-| `baseW`, `baseH` | `number` | Default dimensions (before text auto-expand) |
-| `shape` | `"rectangle"\|"circle"\|"hexagon"\|"diamond"\|"cloud"\|"document"` | Visual shape |
-| `title` | `string` | Display label |
-| `body` | `string` | Plain-text body |
-| `color` | `string?` | Accent override |
-| `opacity` | `number?` | 0–1 |
-| `tags` | `string[]` | For filtering/search |
-| `status` | `"active"\|"archived"\|"deleted"` | Soft delete |
-| `version` | `number` | Monotonically increasing; used for conflict detection |
-| `createdAt` | `number` | Unix ms |
-| `updatedAt` | `number` | Unix ms |
+---
 
-### Edge
+## Data Models (wire contract)
 
-| Field | Type | Notes |
+The backend uses **snake_case** JSON. Mapping between the frontend camelCase types (`@/shared/types`) and the wire shape lives in **`features/canvas/utils/entity-mappers.ts`** (`nodeToBackend` / `nodeToBackendPatch` / `nodeFromBackend` / `edgeToBackend` / `edgeFromBackend`). Always use these — do not hand-roll mappers.
+
+### Node (`/nodes`)
+
+| Wire field | Type | Notes |
 |-------|------|-------|
 | `id` | `string` | Client-generated |
-| `from` | `string` | Source node ID |
-| `to` | `string` | Target node ID |
-| `fromPort` | `"top"\|"right"\|"bottom"\|"left"` | Source port |
-| `toPort` | `"top"\|"right"\|"bottom"\|"left"` | Target port |
-| `animationStyle` | `"flow"\|"pulse"\|"orbit"?` | Visual style |
-| `label` | `string?` | Edge label |
-| `metadata` | `Record<string, unknown>` | Extensible |
-| `version` | `number` | For conflict detection |
+| `x`, `y` | `number` | Canvas position |
+| `w`, `h` | `number` | Current dimensions |
+| `base_w`, `base_h` | `number` | Default dims before text auto-expand |
+| `shape` | `"rectangle"\|"circle"\|"hexagon"\|"diamond"\|"cloud"\|"document"` | |
+| `title` | `string` | |
+| `body` | `string` | **Rich-text HTML lives here** (not in a separate document) |
+| `color` | `string\|null` | |
+| `opacity` | `number\|null` | |
+| `tags` | `string[]` | Sent as `[]` from client |
+| `status` | `"active"\|"archived"\|"deleted"` | |
+| `version` | `number` | |
+| `created_at`, `updated_at` | `number` | Unix ms |
 
-### Project
+### Edge (`/edges`)
 
-| Field | Type | Notes |
+| Wire field | Type | Notes |
 |-------|------|-------|
-| `id` | `string` | Server-generated or client |
-| `name` | `string` | Display name |
-| `description` | `string` | Markdown description |
-| `ownerId` | `string` | User who created it |
-| `collaborators` | `string[]` | User IDs with access |
-| `settings` | `ProjectSettings` | Theme, background, font, animations |
-| `camera` | `{ x, y, zoom }` | Last viewport position |
-| `createdAt` | `number` | Unix ms |
-| `updatedAt` | `number` | Unix ms |
+| `id` | `string` | |
+| `from_node`, `to_node` | `string` | Node ids |
+| `from_port`, `to_port` | `"top"\|"right"\|"bottom"\|"left"` | |
+| `version` | `number` | |
 
-### Document
+> Note: the backend `edges` table has **no `created_at`/`updated_at`** columns.
 
-| Field | Type | Notes |
+### Project (`/projects`)
+
+| Wire field | Type | Notes |
 |-------|------|-------|
-| `nodeId` | `string` | FK to node |
-| `content` | `string` | Tiptap JSON (rich text) |
-| `version` | `number` | For conflict detection |
-| `createdAt` | `number` | Unix ms |
-| `updatedAt` | `number` | Unix ms |
+| `id` | `string` | |
+| `name`, `description` | `string` | |
+| `owner_id` | `string` | |
+| `collaborators` | `string[]` | |
+| `settings` | `object` | |
+| `camera` | `{ x, y, zoom }` | Last viewport |
+| `is_public` | `boolean` | Drives public share view |
+| `created_at`, `updated_at` | `number` | Unix ms |
 
 ---
 
 ## API Endpoints
 
-The API client lives in `src/data/api/`. Configure the base URL:
+Base URL is configured via env (default `http://localhost:3001/api/v1`):
 
 ```env
 # .env.local
-NEXT_PUBLIC_API_URL=https://api.oricalcum.dev/v1
+NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
 ```
 
-### Standard response envelope
+### Response envelope
+
+```json
+{ "success": true, "data": { }, "error": null,
+  "meta": { "serverTime": 1715000000000, "requestId": "req_abc123" } }
+```
+
+```json
+{ "success": false, "data": null,
+  "error": { "code": "INTERNAL_ERROR", "message": "...", "details": null } }
+```
+
+`ApiClient` unwraps `.data`; non-2xx or `success:false` throws `ApiError`. A 401 fires `onAuthFailure` → redirect to `/login`.
+
+### Nodes — `data/api/endpoints/nodes.api.ts`
+
+| Method | Path | Client fn | Used by |
+|--------|------|-----------|---------|
+| `GET` | `/projects/:pid/nodes` | `fetchNodes` | hydrate |
+| `GET` | `/projects/:pid/nodes/:id` | `fetchNode` | — |
+| `POST` | `/projects/:pid/nodes` | `createNode` | persistence |
+| `PATCH` | `/projects/:pid/nodes/:id` | `patchNode` | persistence (move/resize/edit) |
+| `DELETE` | `/projects/:pid/nodes/:id` | `deleteNode` | persistence |
+
+> The server also exposes `PUT /nodes/:id` (full replace) but the client uses `PATCH` for partial updates.
+
+### Edges — `edges.api.ts`
+
+`fetchEdges`, `createEdge`, `updateEdge` (PUT), `deleteEdge` under `/projects/:pid/edges`. Client uses fetch/create/delete only (edges are immutable once drawn).
+
+### Projects — `projects.api.ts`
+
+| Method | Path | Client fn |
+|--------|------|-----------|
+| `GET` | `/projects` | `fetchProjects` |
+| `GET` | `/projects/:id` | `fetchProject` |
+| `POST` | `/projects` | `createProject` (idempotent on `id`) |
+| `PUT` | `/projects/:id` | `updateProject` (full body) |
+| `PATCH` | `/projects/:id` | `patchProject` (partial — camera, name, description) |
+| `PATCH` | `/projects/:id/share` | `patchProjectShare` (`is_public`) |
+| `DELETE` | `/projects/:id` | `deleteProject` |
+
+### Snapshots — `snapshots.api.ts`
+
+| Method | Path | Client fn |
+|--------|------|-----------|
+| `GET` | `/projects/:pid/snapshots` | `listSnapshots` |
+| `GET` | `/projects/:pid/snapshots/:id` | `getSnapshot` (includes `data`) |
+| `POST` | `/projects/:pid/snapshots` | `createSnapshot` (`data = { nodes, edges, camera }`) |
+| `DELETE` | `/projects/:pid/snapshots/:id` | `deleteSnapshot` |
+
+Driven by the `features/snapshots` store + `SnapshotsPanel`. Restore replaces store state; `usePersistence` diffs it and pushes the converging create/patch/delete calls.
+
+### Storage (S3) — `data/api/endpoints/storage.api.ts`
+
+Per-workspace files in S3, sandboxed under the `workspaces/{project_id}/` key prefix.
+Bytes move **browser ↔ S3 directly via presigned URLs**; the API only mints URLs and does
+metadata ops. Access = project **owner or collaborator**. Backend holds AWS creds
+(`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET` in `.env`;
+optional `S3_ENDPOINT_URL` for R2/MinIO). Limits: 50 MB/file, MIME allowlist.
+
+| Method | Path | Client fn |
+|--------|------|-----------|
+| `GET` | `/projects/:pid/storage?prefix=` | `listStorage` (one folder level: `folders[]` + `files[]`) |
+| `POST` | `/projects/:pid/storage/presign-upload` | `presignUpload` → PUT URL; browser PUTs bytes |
+| `GET` | `/projects/:pid/storage/presign-download?path=` | `presignDownload` (GET URL) |
+| `DELETE` | `/projects/:pid/storage?path=` | `deleteStorageItem` (path ending `/` = whole folder) |
+| `POST` | `/projects/:pid/storage/folder` | `createFolder` (zero-byte marker) |
+| `POST` | `/projects/:pid/storage/move` | `moveStorageItem` (copy+delete; file or folder) |
+| `GET` | `/projects/:pid/storage/media?path=` | **auth-free 307 redirect** to a fresh presigned GET |
+
+The `media` endpoint is the **durable `src`** for media embedded in node bodies / avatars
+(an `<img>` can't send a Bearer token). Bucket stays private; safety relies on the
+**uuid-prefixed keys** that `uploadMedia()` (storage.api) generates. Helpers:
+`mediaUrl(pid, path)` builds the stable URL; `uploadMedia(pid, file, folder)` does presign→PUT→return URL.
+
+UI: `features/storage` (`StorageBrowser` at hub route `/workspace/:id/storage`). All node/document
+uploads land under `uploded-node-media/`: editor images → `uploded-node-media/`, node attachments
+→ `uploded-node-media/{nodeId}/` (listed by prefix, no node-schema change). Workspace avatar →
+`_avatar/` (URL stored on `project.settings.avatar`).
+
+#### One-time AWS setup (`../oricalcum-api/infra/`)
+
+Two policies live in `infra/`. Apply both once with an **admin** AWS login — the app's own
+IAM user (`oricalcum-s3`) cannot grant itself permissions.
+
+**1. IAM policy — `s3-iam-policy.json`** (attach as an inline policy to user `oricalcum-s3`):
 
 ```json
 {
-  "success": true,
-  "data": { ... },
-  "error": null,
-  "meta": {
-    "serverTime": 1715000000000,
-    "requestId": "req_abc123"
-  }
-}
-```
-
-Errors:
-
-```json
-{
-  "success": false,
-  "data": null,
-  "error": {
-    "code": "CONFLICT",
-    "message": "Node was modified by another user",
-    "details": { "localVersion": 3, "serverVersion": 5 }
-  }
-}
-```
-
-### Nodes
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/projects/:projectId/nodes` | List all nodes for a project |
-| `GET` | `/projects/:projectId/nodes/:id` | Get single node |
-| `POST` | `/projects/:projectId/nodes` | Create a node |
-| `PUT` | `/projects/:projectId/nodes/:id` | Update a node (full replace) |
-| `PATCH` | `/projects/:projectId/nodes/:id` | Partial update |
-| `DELETE` | `/projects/:projectId/nodes/:id` | Soft or hard delete |
-
-### Edges
-
-Same pattern under `/projects/:projectId/edges`.
-
-### Projects
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/projects` | List user's projects |
-| `GET` | `/projects/:id` | Get project + settings |
-| `POST` | `/projects` | Create project |
-| `PUT` | `/projects/:id` | Update project metadata/settings |
-| `DELETE` | `/projects/:id` | Delete project |
-
-### Documents
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/documents/:nodeId` | Get document content |
-| `PUT` | `/documents/:nodeId` | Upsert document (idempotent) |
-| `DELETE` | `/documents/:nodeId` | Delete document |
-
-### Sync
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/sync/nodes` | Bidirectional node sync |
-| `POST` | `/sync/edges` | Bidirectional edge sync |
-
-Sync payload:
-
-```json
-{
-  "projectId": "ws_001",
-  "lastSyncedAt": 1715000000000,
-  "entities": [
-    {
-      "id": "n_001",
-      "x": 100, "y": 200,
-      "shape": "hexagon",
-      "title": "auth flow",
-      "version": 3,
-      "updatedAt": 1715000100000
-    }
+  "Version": "2012-10-17",
+  "Statement": [
+    { "Sid": "OricalcumObjectRW", "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::oricalcum-bucket/*" },
+    { "Sid": "OricalcumListBucket", "Effect": "Allow",
+      "Action": "s3:ListBucket", "Resource": "arn:aws:s3:::oricalcum-bucket" }
   ]
 }
 ```
 
-Sync response:
+What each line does and **why the API needs it**:
+
+| Action | Resource | Why |
+|--------|----------|-----|
+| `s3:PutObject` | `bucket/*` (objects) | presigned upload URLs; folder markers (`put_empty`); copy-on-move |
+| `s3:GetObject` | `bucket/*` | presigned download/preview URLs; the `media` redirect; copy source on move |
+| `s3:DeleteObject` | `bucket/*` | delete file/folder; second half of move (copy → delete) |
+| `s3:ListBucket` | `bucket` (the bucket itself) | `list_objects_v2` for the browser. **Note the resource is the bucket ARN, not `/*`** — `ListBucket` is a bucket-level action; putting it on `/*` silently fails with AccessDenied |
+
+Least-privilege: scoped to this one bucket, only the five actions used. No `s3:*`, no other buckets.
+Without it every call returns `403 AccessDenied` (this was the initial blocker).
+
+**2. Bucket CORS — `s3-cors.json`** (bucket → Permissions → CORS):
 
 ```json
-{
-  "success": true,
-  "data": {
-    "pushed": 5,
-    "pulled": 2,
-    "conflicts": [],
-    "serverTime": 1715000200000
-  }
-}
+[
+  { "AllowedOrigins": ["http://localhost:3000"],
+    "AllowedMethods": ["PUT", "GET"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3000 }
+]
 ```
+
+Why CORS is needed at all: uploads/downloads go **browser → S3 directly** (the whole point of
+presigned URLs — bytes never touch the API). That's a cross-origin request from the Next.js app
+to `s3.amazonaws.com`, so the bucket must opt in:
+
+- `AllowedMethods: PUT` — presigned upload (`uploadToPresigned` does `fetch/XHR PUT`).
+- `AllowedMethods: GET` — presigned download + image/PDF preview fetches.
+- `AllowedOrigins` — the frontend origin(s). Add the prod domain when deploying:
+  `["http://localhost:3000", "https://yourdomain.com"]`.
+- `AllowedHeaders: *` — lets the signed `Content-Type` (and any `x-amz-*`) headers through on PUT.
+- `ExposeHeaders: ETag` — so the browser can read the upload's ETag from the response.
+- `MaxAgeSeconds` — caches the preflight `OPTIONS` so the browser doesn't re-ask every upload.
+
+Without CORS the PUT/GET still reach S3 but the browser blocks the JS from reading the result —
+uploads appear to hang/fail in devtools with a CORS error.
+
+> Note: the `media` redirect endpoint is server-issued (302 from the API, not a cross-origin
+> JS fetch), so an `<img src>` pointing at it works regardless of CORS. CORS only matters for the
+> direct presigned PUT/GET the browser makes itself.
+
+Apply via CLI:
+
+```bash
+cd ../oricalcum-api
+aws iam put-user-policy --user-name oricalcum-s3 --policy-name oricalcum-s3-rw \
+  --policy-document file://infra/s3-iam-policy.json --profile admin
+aws s3api put-bucket-cors --bucket oricalcum-bucket \
+  --cors-configuration file://infra/s3-cors.json --profile admin
+```
+
+### Public (read-only share) — used by `app/share/[projectId]`
+
+`GET /public/projects/:id`, `/public/projects/:id/nodes`, `/public/projects/:id/edges`. No auth; returns data only when `is_public` is true.
+
+### Documents & Sync — present server-side, **unused by the client**
+
+- `/documents/:nodeId` (GET/PUT/DELETE): body content is stored on `node.body`, so these are not called. `documents.api.ts` was removed from the client.
+- `/sync/nodes`, `/sync/edges`: superseded by per-entity REST; not called.
 
 ---
 
 ## Authentication
 
-### Flow
-
-1. User logs in via your auth provider (Supabase, Clerk, Auth0, custom)
-2. Store the JWT/token in memory or httpOnly cookie
-3. Set it on the API client:
+Supabase JWT, wired in `providers/auth-provider.tsx`:
 
 ```ts
 import { apiClient } from "@/data/api";
 
-// After login:
-apiClient.setAuthToken("eyJhbGci...");
-
-// On logout:
+// on session resolve / auth state change:
+apiClient.setAuthToken(session.access_token);
+// on sign-out:
 apiClient.clearAuthToken();
 ```
 
-### Token refresh
-
-The `ApiClient` accepts an `onAuthFailure` callback in its constructor. When the server returns 401, this fires — redirect to login or trigger token refresh:
-
-```ts
-const apiClient = new ApiClient({
-  baseUrl: "...",
-  onAuthFailure: () => {
-    // redirect to /login or refresh token
-    refreshToken().then(newToken => {
-      apiClient.setAuthToken(newToken);
-    });
-  },
-});
-```
+On 401 the client's `onAuthFailure` (configured in `endpoints/api-client.ts`) redirects to `/login`.
 
 ---
 
-## Sync Strategy
+## Running locally
 
-### Write path (client → server)
+```bash
+# backend
+cd ../oricalcum-api
+uv run uvicorn app.main:app --reload --port 3001   # /health, /docs
 
-```
-User edits node
-  → useNodeStore.updateNode()        (immediate local update)
-  → node.syncStatus = "dirty"
-  → SyncEngine.sync()                (debounced, e.g. 2s after last change)
-    → NodeRepository.getDirty()      (collects all dirty entities)
-    → POST /sync/nodes               (send to server)
-    → on success: markSynced(id)     (syncStatus = "synced")
-    → on failure: keep dirty, retry
+# frontend
+npm run dev   # NEXT_PUBLIC_API_URL → http://localhost:3001/api/v1
 ```
 
-### Read path (server → client)
-
-```
-SyncEngine.sync()
-  → GET /projects/:id/nodes?since=<lastSyncedAt>
-  → NodeRepository.applyRemote()
-    → if remote.updatedAt > local.updatedAt && local is clean:
-        overwrite local
-    → if remote.updatedAt > local.updatedAt && local is dirty:
-        conflict → mark "conflicted"
-```
-
-### Offline support
-
-The `OfflineQueue` stores failed mutations in `localStorage`:
-
-```ts
-import { offlineQueue } from "@/data/sync";
-
-// Automatically used by SyncEngine:
-// 1. Mutation fails → enqueue to offlineQueue
-// 2. Browser fires "online" event → SyncEngine flushes queue
-// 3. Each entry retried up to 5 times, then dropped
-```
-
-### Conflict resolution
-
-`ConflictResolver` supports two strategies:
-
-| Strategy | Behavior |
-|----------|----------|
-| `"lww"` (default) | Last-write-wins: server timestamp wins if local is clean; if local is dirty and remote is newer, marks as conflicted |
-| `"manual"` | Stores both versions; UI can prompt user to choose |
-
----
-
-## Implementation checklist
-
-### Phase 1 — Basic CRUD
-
-- [ ] Set up `NEXT_PUBLIC_API_URL` in `.env.local`
-- [ ] Implement `POST /auth/login` on the backend
-- [ ] Call `apiClient.setAuthToken()` after login
-- [ ] Call `fetchProjects()` on dashboard load → populate workspace list
-- [ ] Call `fetchNodes()` + `fetchEdges()` on workspace open → load canvas
-- [ ] Call `createNode()` / `updateNode()` / `deleteNode()` on user actions
-- [ ] Call `upsertDocument()` when document panel saves
-
-### Phase 2 — Sync engine
-
-- [ ] Instantiate `SyncEngine` with current `projectId`
-- [ ] Subscribe to store changes → debounce → call `syncEngine.sync()`
-- [ ] Handle `sync:start` / `sync:complete` / `sync:error` events (show toast)
-- [ ] Test offline: disconnect network → make edits → reconnect → verify sync
-
-### Phase 3 — Collaboration
-
-- [ ] Add WebSocket connection for real-time push
-- [ ] On receiving remote mutation → `nodeRepo.applyRemote()`
-- [ ] Handle `sync:conflicts` event → show conflict UI
-- [ ] Implement manual conflict resolution UI
-
-### Phase 4 — Polish
-
-- [ ] Add loading skeletons during sync
-- [ ] Debounce sync to avoid flooding (2s idle debounce)
-- [ ] Retry with exponential backoff
-- [ ] Add sync status indicator in status bar
-
----
-
-## Quickstart: wiring SyncEngine into the workspace
-
-```ts
-// src/app/workspace/page.tsx
-"use client";
-
-import { useEffect, useRef } from "react";
-import { SyncEngine } from "@/data/sync";
-
-export default function WorkspacePage() {
-  const engineRef = useRef<SyncEngine | null>(null);
-
-  useEffect(() => {
-    const projectId = "ws_001"; // get from store/params
-    const engine = new SyncEngine(projectId);
-    engineRef.current = engine;
-
-    const unsub = engine.on((event) => {
-      switch (event.type) {
-        case "sync:start":
-          console.log("syncing...");
-          break;
-        case "sync:complete":
-          console.log(`pushed ${event.pushed}, pulled ${event.pulled}`);
-          break;
-        case "sync:error":
-          console.error("sync failed", event.error);
-          break;
-      }
-    });
-
-    engine.sync(); // initial pull
-
-    // Auto-sync every 30s
-    const interval = setInterval(() => engine.sync(), 30_000);
-
-    return () => {
-      unsub();
-      clearInterval(interval);
-      engine.destroy();
-    };
-  }, []);
-
-  // ... rest of the workspace
-}
-```
+End-to-end check: log in → open workspace → add/move/edit/delete nodes & edges → reload (clear `localStorage` key `oricalcum-workspaces` to prove it loads from the API, not cache). Pan/zoom and rename persist across reload. Capture/restore via the history panel. Toggle share → open `/share/:id` incognito.
 
 ---
 
@@ -379,30 +307,38 @@ export default function WorkspacePage() {
 
 ```
 src/data/
-├── models/
-│   ├── node.model.ts          # NodeModel, toNodeModel, nodeToApiShape, nodeFromApiShape
-│   ├── edge.model.ts          # EdgeModel, toEdgeModel, edgeToApiShape, edgeFromApiShape
-│   ├── project.model.ts       # ProjectModel, defaultProjectSettings, projectToApiShape
-│   ├── document.model.ts      # DocumentModel, documentToApiShape, documentFromApiShape
-│   └── index.ts               # barrel exports
 ├── api/
-│   ├── api-client.ts          # ApiClient class (generic fetch wrapper)
-│   ├── api.types.ts           # ApiResponse, PaginatedResponse, SyncPayload, SyncResult
+│   ├── api-client.ts            # ApiClient class (fetch wrapper, retry, auth, abort)
+│   ├── api.types.ts            # ApiResponse, PaginatedResponse, ApiError
 │   ├── endpoints/
-│   │   ├── api-client.ts      # Singleton ApiClient instance
-│   │   ├── nodes.api.ts       # CRUD + sync for nodes
-│   │   ├── edges.api.ts       # CRUD + sync for edges
-│   │   ├── projects.api.ts    # CRUD for projects
-│   │   └── documents.api.ts   # CRUD for documents
-│   └── index.ts               # barrel exports
-├── repositories/
-│   ├── base.repository.ts     # Repository<T> interface
-│   ├── node.repository.ts     # NodeRepository (wraps useNodeStore)
-│   └── index.ts               # barrel exports
-├── sync/
-│   ├── sync-engine.ts         # SyncEngine (orchestrates push/pull)
-│   ├── offline-queue.ts       # OfflineQueue (localStorage-backed)
-│   ├── conflict-resolver.ts   # ConflictResolver (LWW / manual)
-│   └── index.ts               # barrel exports
-└── index.ts                   # top-level barrel
+│   │   ├── api-client.ts        # Singleton ApiClient instance
+│   │   ├── nodes.api.ts         # fetch/create/patch/delete
+│   │   ├── edges.api.ts         # fetch/create/update/delete
+│   │   ├── projects.api.ts      # CRUD + patchProject + patchProjectShare + public reads
+│   │   └── snapshots.api.ts     # list/get/create/delete
+│   └── index.ts                 # barrel
+└── index.ts                     # re-exports ./api
+
+src/features/canvas/
+├── hooks/use-persistence.ts     # hydrate + debounced diff writes (THE sync logic)
+└── utils/entity-mappers.ts      # snake_case ↔ camelCase mappers
+
+src/features/snapshots/
+├── store/snapshots.store.ts
+├── components/snapshots-panel.tsx
+└── index.ts
 ```
+
+---
+
+## History
+
+Removed in `feature/folder-data-storing` (were dead code — wired only to each other, with a camelCase wire contract that didn't match the backend):
+
+- `src/data/repositories/` (`NodeRepository`, `base.repository`)
+- `src/data/sync/` (`SyncEngine`, `OfflineQueue`, `ConflictResolver`)
+- `src/data/models/` (camelCase api-shape mappers — replaced by `entity-mappers.ts`)
+- `src/data/api/endpoints/documents.api.ts` (body lives on the node)
+- `SyncPayload` / `SyncResult` types and `syncNodes` / `syncEdges` fns
+
+If real-time collaboration is added later, prefer a WebSocket push channel feeding the existing stores over reviving the batch-sync layer.

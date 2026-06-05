@@ -6,33 +6,118 @@ import { uid } from "@/shared/lib/uid";
 import { useNodeStore } from "@/features/nodes/store/node.store";
 import { useEdgeStore } from "@/features/edges/store/edge.store";
 import { useCanvasStore } from "@/features/canvas/store/canvas.store";
+import {
+  fetchProjects,
+  createProject,
+  patchProject,
+  deleteProject,
+} from "@/data/api/endpoints/projects.api";
+import { createNode } from "@/data/api/endpoints/nodes.api";
+import { createEdge } from "@/data/api/endpoints/edges.api";
+import { nodeToBackend, edgeToBackend } from "@/features/canvas/utils/entity-mappers";
+import { buildTutorial, TUTORIAL_META } from "../constants/tutorial";
 import type { WorkspaceRecord } from "../types/workspaces.types";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
+// Debounce backend meta sync per project. Rapid title/description keystrokes used
+// to fire one un-debounced PATCH each; with variable latency those completed out of
+// order and the DB could keep a stale/partial value. Coalesce to a single write of
+// the latest record after typing settles. Camera is debounced separately in usePersistence.
+const META_SYNC_DELAY = 500;
+const metaSyncTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+
+// Re-entry guard so a double-click can't create two workspaces.
+let creatingWorkspace = false;
+
+function scheduleMetaSync(id: string) {
+  if (metaSyncTimers[id]) clearTimeout(metaSyncTimers[id]);
+  metaSyncTimers[id] = setTimeout(async () => {
+    delete metaSyncTimers[id];
+    const ws = useWorkspacesStore.getState().workspaces.find((w) => w.id === id);
+    if (!ws) return;
+    try {
+      await patchProject(id, {
+        name: ws.name,
+        description: ws.description,
+        settings: { accentColor: ws.accentColor, ...(ws.avatar ? { avatar: ws.avatar } : {}) },
+      });
+      useWorkspacesStore.setState({ isOffline: false });
+    } catch (err) {
+      console.error("Failed to update workspace on backend:", err);
+      useWorkspacesStore.setState({ isOffline: true });
+    }
+  }, META_SYNC_DELAY);
+}
+
 const DEFAULT_ACCENT = "#10A37F";
 
-function defaultWorkspace(): WorkspaceRecord {
+interface ProjectFromBackend {
+  id: string;
+  name: string;
+  description?: string;
+  owner_id: string;
+  collaborators?: string[];
+  settings?: Record<string, unknown>;
+  camera?: { x: number; y: number; zoom: number };
+  is_public?: boolean;
+  created_at: number;
+  updated_at: number;
+}
+
+function projectToWorkspace(
+  project: ProjectFromBackend,
+  local?: WorkspaceRecord,
+): WorkspaceRecord {
+  const settings = (project.settings ?? {}) as Record<string, unknown>;
   return {
-    id: uid("ws"),
-    name: "My first workspace",
-    description: "Your default canvas",
-    accentColor: DEFAULT_ACCENT,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    nodeCount: 0,
-    userCount: 1,
-    nodes: [],
-    edges: [],
-    camera: { x: 0, y: 0, zoom: 1 },
+    id: project.id,
+    name: project.name,
+    description: project.description ?? "",
+    accentColor: (settings.accentColor as string) ?? local?.accentColor ?? DEFAULT_ACCENT,
+    avatar: (settings.avatar as string) ?? local?.avatar,
+    createdAt: project.created_at,
+    updatedAt: project.updated_at,
+    nodeCount: local?.nodeCount ?? 0,
+    userCount: (project.collaborators?.length ?? 0) + 1,
+    nodes: local?.nodes ?? [],
+    edges: local?.edges ?? [],
+    camera: project.camera ?? local?.camera ?? { x: 0, y: 0, zoom: 1 },
+  };
+}
+
+function workspaceToCreatePayload(ws: WorkspaceRecord) {
+  return {
+    id: ws.id,
+    name: ws.name,
+    description: ws.description,
+    settings: { accentColor: ws.accentColor, ...(ws.avatar ? { avatar: ws.avatar } : {}) },
+    camera: ws.camera,
   };
 }
 
 interface WorkspacesStore {
   workspaces: WorkspaceRecord[];
   activeId: string | null;
-  createWorkspace: (name: string, description?: string, accentColor?: string) => void;
-  deleteWorkspace: (id: string) => void;
-  updateMeta: (id: string, patch: Partial<Pick<WorkspaceRecord, "name" | "description" | "accentColor">>) => void;
+  /** User id the cached workspaces belong to — guards against cross-user leakage. */
+  currentUserId: string | null;
+  /** User id we already seeded the Getting Started tutorial for — so it's seeded once. */
+  tutorialSeededFor: string | null;
+  isLoading: boolean;
+  error: string | null;
+  isOffline: boolean;
+
+  /** Bind the cache to a user; wipes it if a different user than the cached one. */
+  syncUser: (userId: string) => void;
+  /** Clear all cached workspace data (call on sign-out). */
+  clearAll: () => void;
+  /** Hydrate from backend, falling back to local cache. */
+  fetchWorkspaces: () => Promise<void>;
+  createWorkspace: (name: string, description?: string, accentColor?: string) => Promise<void>;
+  /** Create the pre-built "Getting Started" tutorial workspace (project + nodes + edges). */
+  seedTutorialWorkspace: () => Promise<string>;
+  deleteWorkspace: (id: string) => Promise<void>;
+  updateMeta: (id: string, patch: Partial<Pick<WorkspaceRecord, "name" | "description" | "accentColor" | "avatar">>) => Promise<void>;
+  loadWorkspace: (id: string) => void;
   openWorkspace: (id: string, router: AppRouterInstance) => void;
   saveCurrentSnapshot: () => void;
 }
@@ -40,10 +125,74 @@ interface WorkspacesStore {
 export const useWorkspacesStore = create<WorkspacesStore>()(
   persist(
     (set, get) => ({
-      workspaces: [defaultWorkspace()],
+      workspaces: [],
       activeId: null,
+      currentUserId: null,
+      tutorialSeededFor: null,
+      isLoading: false,
+      error: null,
+      isOffline: false,
 
-      createWorkspace: (name, description = "", accentColor = DEFAULT_ACCENT) => {
+      syncUser: (userId) => {
+        if (get().currentUserId === userId) return;
+        // Different (or first) user on this browser — never carry another
+        // user's cached workspaces over.
+        set({ workspaces: [], activeId: null, currentUserId: userId });
+      },
+
+      clearAll: () => set({ workspaces: [], activeId: null, currentUserId: null }),
+
+      fetchWorkspaces: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const raw = await fetchProjects();
+          const projects = raw as unknown as ProjectFromBackend[];
+          const localWorkspaces = get().workspaces;
+          const localMap = new Map(localWorkspaces.map((w) => [w.id, w]));
+
+          const merged = projects.map((p) => projectToWorkspace(p, localMap.get(p.id)));
+
+          // Preserve local-only workspaces that haven't been synced yet
+          const remoteIds = new Set(projects.map((p) => p.id));
+          const unsynced = localWorkspaces.filter((w) => !remoteIds.has(w.id));
+
+          set({
+            workspaces: [...unsynced, ...merged],
+            isLoading: false,
+            isOffline: false,
+          });
+
+          // First-run onboarding: a brand-new user (no workspaces) gets the
+          // Getting Started tutorial seeded once. Set the flag before the async
+          // seed so a rapid re-mount can't create it twice. Only runs here, in
+          // the online success path — a failed fetch never seeds.
+          const st = get();
+          if (
+            st.currentUserId &&
+            st.workspaces.length === 0 &&
+            st.tutorialSeededFor !== st.currentUserId
+          ) {
+            set({ tutorialSeededFor: st.currentUserId });
+            await get().seedTutorialWorkspace();
+          }
+        } catch (err) {
+          console.error("Failed to fetch workspaces:", err);
+          // Security: when we can't verify ownership with the backend, show
+          // nothing rather than rendering a possibly-stale/foreign cache.
+          set({
+            workspaces: [],
+            isLoading: false,
+            error: err instanceof Error ? err.message : "Failed to load workspaces",
+            isOffline: true,
+          });
+        }
+      },
+
+      createWorkspace: async (name, description = "", accentColor = DEFAULT_ACCENT) => {
+        // Guard against double-submit: each call mints a new id, so two rapid
+        // clicks would otherwise create two distinct workspaces.
+        if (creatingWorkspace) return;
+        creatingWorkspace = true;
         const ws: WorkspaceRecord = {
           id: uid("ws"),
           name,
@@ -57,28 +206,96 @@ export const useWorkspacesStore = create<WorkspacesStore>()(
           edges: [],
           camera: { x: 0, y: 0, zoom: 1 },
         };
+
+        // Optimistic local update
         set((s) => ({ workspaces: [...s.workspaces, ws] }));
+
+        try {
+          await createProject(workspaceToCreatePayload(ws));
+          set({ isOffline: false });
+        } catch (err) {
+          console.error("Failed to create workspace on backend:", err);
+          set({ isOffline: true });
+          // Keep local workspace; it will be shown as unsynced
+        } finally {
+          creatingWorkspace = false;
+        }
       },
 
-      deleteWorkspace: (id) => {
+      seedTutorialWorkspace: async () => {
+        const { nodes, edges } = buildTutorial();
+        const now = Date.now();
+        const ws: WorkspaceRecord = {
+          id: uid("ws"),
+          name: TUTORIAL_META.name,
+          description: TUTORIAL_META.description,
+          accentColor: TUTORIAL_META.accentColor,
+          createdAt: now,
+          updatedAt: now,
+          nodeCount: nodes.length,
+          userCount: 1,
+          nodes,
+          edges,
+          camera: { x: 0, y: 0, zoom: 1 },
+        };
+
+        // Optimistic local insert so the dashboard card appears immediately.
+        set((s) => ({ workspaces: [...s.workspaces, ws] }));
+
+        try {
+          await createProject(workspaceToCreatePayload(ws));
+          // Nodes first (edges reference them via FK), then edges.
+          await Promise.all(nodes.map((n) => createNode(ws.id, nodeToBackend(n))));
+          await Promise.all(edges.map((e) => createEdge(ws.id, edgeToBackend(e))));
+          set({ isOffline: false });
+        } catch (err) {
+          console.error("Failed to seed tutorial workspace:", err);
+          set({ isOffline: true });
+          // Keep the local copy; it shows as unsynced.
+        }
+        return ws.id;
+      },
+
+      deleteWorkspace: async (id) => {
+        // Optimistic local update
         set((s) => ({
           workspaces: s.workspaces.filter((w) => w.id !== id),
           activeId: s.activeId === id ? null : s.activeId,
         }));
+
+        try {
+          await deleteProject(id);
+          set({ isOffline: false });
+        } catch (err) {
+          console.error("Failed to delete workspace on backend:", err);
+          set({ isOffline: true });
+        }
       },
 
-      updateMeta: (id, patch) => {
+      updateMeta: async (id, patch) => {
+        const before = get().workspaces.find((w) => w.id === id);
+        if (!before) return;
+
+        const updated: WorkspaceRecord = {
+          ...before,
+          ...patch,
+          updatedAt: Date.now(),
+        };
+
+        // Optimistic local update — instant in the UI + localStorage.
         set((s) => ({
-          workspaces: s.workspaces.map((w) =>
-            w.id === id ? { ...w, ...patch, updatedAt: Date.now() } : w,
-          ),
+          workspaces: s.workspaces.map((w) => (w.id === id ? updated : w)),
         }));
+
+        // Debounced backend write of the full latest meta (last-write-wins).
+        scheduleMetaSync(id);
       },
 
-      openWorkspace: (id, router) => {
+      loadWorkspace: (id) => {
         const { activeId, workspaces } = get();
+        if (activeId === id) return;
 
-        // save current canvas into active workspace
+        // save current canvas into the previously-active workspace (local cache only)
         if (activeId) {
           const nodes = useNodeStore.getState().nodes;
           const edges = useEdgeStore.getState().edges;
@@ -92,7 +309,7 @@ export const useWorkspacesStore = create<WorkspacesStore>()(
           }));
         }
 
-        // load target workspace
+        // load target workspace into the canvas stores (optimistic local seed)
         const target = workspaces.find((w) => w.id === id);
         useNodeStore.setState({ nodes: target?.nodes ?? [], selectedId: null });
         useEdgeStore.setState({ edges: target?.edges ?? [], selectedEdgeId: null });
@@ -102,7 +319,11 @@ export const useWorkspacesStore = create<WorkspacesStore>()(
         });
 
         set({ activeId: id });
-        router.push("/workspace");
+      },
+
+      openWorkspace: (id, router) => {
+        get().loadWorkspace(id);
+        router.push(`/workspace/${id}`);
       },
 
       saveCurrentSnapshot: () => {
@@ -122,7 +343,12 @@ export const useWorkspacesStore = create<WorkspacesStore>()(
     }),
     {
       name: "oricalcum-workspaces",
-      partialize: (s) => ({ workspaces: s.workspaces, activeId: s.activeId }),
+      partialize: (s) => ({
+        workspaces: s.workspaces,
+        activeId: s.activeId,
+        currentUserId: s.currentUserId,
+        tutorialSeededFor: s.tutorialSeededFor,
+      }),
     },
   ),
 );

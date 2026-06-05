@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { uid } from "@/shared/lib/uid";
 import { useCanvasStore } from "@/features/canvas/store/canvas.store";
 import { useNodeStore } from "@/features/nodes/store/node.store";
@@ -17,6 +18,8 @@ interface FilesStore {
   remove: (id: string) => void;
   toggleFolder: (id: string) => void;
   setActiveFile: (id: string) => void;
+  /** Reset to the default empty tree (call on sign-out / user switch). */
+  reset: () => void;
 }
 
 const ROOT_FILE_ID = "f_root_default";
@@ -44,7 +47,9 @@ function uniqueName(tree: FsNode[], parentId: string | null, base: string): stri
   return `${base}-${i}`;
 }
 
-export const useFilesStore = create<FilesStore>((set, get) => ({
+export const useFilesStore = create<FilesStore>()(
+  persist(
+    (set, get) => ({
   tree: [
     {
       id: ROOT_FILE_ID,
@@ -131,4 +136,20 @@ export const useFilesStore = create<FilesStore>((set, get) => ({
 
     set({ activeFileId: id });
   },
-}));
+
+  reset: () =>
+    set({
+      tree: [{ id: ROOT_FILE_ID, kind: "file", name: "untitled", parentId: null }],
+      activeFileId: ROOT_FILE_ID,
+      snapshots: {},
+    }),
+    }),
+    {
+      name: "oricalcum-files",
+      // Persist only the tree structure/names — NOT snapshots (node/edge data
+      // lives in the backend and would bloat localStorage). This keeps file
+      // renames across refreshes so the title no longer reverts to "untitled".
+      partialize: (s) => ({ tree: s.tree, activeFileId: s.activeFileId }),
+    },
+  ),
+);

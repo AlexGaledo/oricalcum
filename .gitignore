@@ -7,3 +7,9 @@ out
 next-env.d.ts
 design_modules
 .env
+# tests
+/playwright-report/
+/test-results/
+/e2e/.auth/
+
+.vercel

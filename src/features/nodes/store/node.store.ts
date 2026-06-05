@@ -13,6 +13,7 @@ interface NodeStore {
   selectedId: string | null;
   hoverConnectTargetId: string | null;
   createNode: (shape: ShapeId, cx: number, cy: number, scale: number) => string;
+  duplicateNode: (id: string) => string | null;
   moveNode: (id: string, x: number, y: number) => void;
   resizeNode: (id: string, w: number, h: number) => void;
   removeNode: (id: string) => void;
@@ -22,7 +23,7 @@ interface NodeStore {
   clear: () => void;
 }
 
-export const useNodeStore = create<NodeStore>((set) => ({
+export const useNodeStore = create<NodeStore>((set, get) => ({
   nodes: [],
   selectedId: null,
   hoverConnectTargetId: null,
@@ -48,6 +49,22 @@ export const useNodeStore = create<NodeStore>((set) => ({
     };
     set((s) => ({ nodes: [...s.nodes, node], selectedId: id }));
     return id;
+  },
+  duplicateNode: (id) => {
+    const src = get().nodes.find((n) => n.id === id);
+    if (!src) return null;
+    const newId = uid("n");
+    const now = Date.now();
+    const copy: OriNode = {
+      ...src,
+      id: newId,
+      x: src.x + 24,
+      y: src.y + 24,
+      createdAt: now,
+      updatedAt: now,
+    };
+    set((s) => ({ nodes: [...s.nodes, copy], selectedId: newId }));
+    return newId;
   },
   moveNode: (id, x, y) =>
     set((s) => ({
