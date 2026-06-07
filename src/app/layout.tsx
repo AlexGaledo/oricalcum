@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Lora, Space_Grotesk, Caveat } from "next/font/google";
 import { Providers } from "@/providers";
 import "./globals.css";
-import { Analytics } from "@vercel/analytics/next"
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -55,8 +55,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${inter.variable} ${jbm.variable} ${lora.variable} ${grotesk.variable} ${caveat.variable}`}
     >
       <body suppressHydrationWarning>
-        < Analytics />
         <Providers>{children}</Providers>
+        <Analytics />
       </body>
     </html>
   );
