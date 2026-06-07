@@ -55,6 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${inter.variable} ${jbm.variable} ${lora.variable} ${grotesk.variable} ${caveat.variable}`}
     >
       <body suppressHydrationWarning>
+        < Analytics />
         <Providers>{children}</Providers>
       </body>
     </html>
