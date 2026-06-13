@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import { WorkspaceSidebar } from "@/features/navigation/components/workspace-sidebar";
 import { Breadcrumbs } from "@/features/navigation/components/breadcrumbs";
 import { useMobileNavStore } from "@/features/navigation/store/mobile-nav.store";
+import { NeuralOrbLazy } from "@/features/canvas/components/neural-orb.lazy";
+import { useThemeStore } from "@/features/themes/store/theme.store";
 
 /**
  * Hub chrome shared by the overview / people / settings / chatspace sub-routes.
@@ -17,9 +19,11 @@ export default function HubLayout({ children }: { children: ReactNode }) {
   const hubNavOpen = useMobileNavStore((s) => s.hubNavOpen);
   const toggleHubNav = useMobileNavStore((s) => s.toggleHubNav);
   const closeHubNav = useMobileNavStore((s) => s.closeHubNav);
+  const accent = useThemeStore((s) => s.accent);
 
   return (
     <div className="hub-shell" data-mobile-nav-open={hubNavOpen ? "1" : "0"}>
+      <NeuralOrbLazy accent={accent} glow={50} variant="peripheral" />
       <WorkspaceSidebar workspaceId={id} />
       {/* Scrim behind the mobile drawer */}
       <div

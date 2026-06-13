@@ -92,7 +92,13 @@ export function NodeShapeBg({ shape, width, height }: NodeShapeBgProps) {
   }
   return (
     <svg className="node-shape" width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-      <path d={path} fill="var(--surface)" stroke="var(--accent)" strokeWidth="1" strokeLinejoin="round" />
+      <path
+        d={path}
+        fill="rgba(19, 22, 26, 0.72)"
+        stroke="rgba(var(--accent-rgb), 0.65)"
+        strokeWidth="1"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

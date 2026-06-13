@@ -1,37 +1,58 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Logo } from "@/shared/components/icons/logo";
+import { NeuralOrbLazy } from "@/features/canvas/components/neural-orb.lazy";
 
+/**
+ * Cinematic entry: the orb assembles from scattered particles, logo and
+ * tagline fade in, then the camera pushes into the core and routes onward.
+ * A click anywhere skips straight to the destination.
+ */
 export default function Home() {
   const router = useRouter();
   const [fadeOut, setFadeOut] = useState(false);
+  const destRef = useRef<string | null>(null);
+  const cinematicDoneRef = useRef(false);
+  const navigatedRef = useRef(false);
+
+  const tryNavigate = () => {
+    if (navigatedRef.current || !destRef.current || !cinematicDoneRef.current) return;
+    navigatedRef.current = true;
+    setFadeOut(true);
+    const dest = destRef.current;
+    window.setTimeout(() => router.push(dest), 320);
+  };
 
   useEffect(() => {
-    const startFade = window.setTimeout(() => setFadeOut(true), 600);
-
     supabase.auth.getSession().then(({ data: { session } }) => {
-      const destination = session ? "/dashboard" : "/login";
-      const navigate = window.setTimeout(() => router.push(destination), 900);
-      return () => window.clearTimeout(navigate);
+      destRef.current = session ? "/dashboard" : "/login";
+      tryNavigate();
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    return () => {
-      window.clearTimeout(startFade);
-    };
-  }, [router]);
+  const finishCinematic = () => {
+    cinematicDoneRef.current = true;
+    tryNavigate();
+  };
 
   return (
-    <main className={`splash ${fadeOut ? "fade-out" : ""}`}>
+    <main
+      className={`splash splash-cinematic ${fadeOut ? "fade-out" : ""}`}
+      onClick={finishCinematic}
+      role="presentation"
+    >
+      <NeuralOrbLazy accent="#10A37F" glow={70} cinematic onCinematicDone={finishCinematic} />
       <div className="splash-inner">
         <div className="splash-logo" aria-hidden="true">
           <Logo />
         </div>
         <h1 className="splash-title">Oricalcum</h1>
         <p className="splash-motto">An Oracle for work, teams, and hobbies.</p>
-        <div className="splash-spinner" aria-hidden="true"></div>
+        <p className="splash-skip">click to enter</p>
       </div>
     </main>
   );

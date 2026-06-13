@@ -1,9 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Canvas, Minimap, SyncPulse } from "@/features/canvas";
+import { Canvas, Minimap, SyncPulse, OrbConsoleLazy } from "@/features/canvas";
+import type { OrbNodeDot } from "@/features/canvas";
+import { useNodeStore } from "@/features/nodes/store/node.store";
+import { useThemeStore } from "@/features/themes/store/theme.store";
+import { useAssistantStore } from "@/features/assistant/store/assistant.store";
+import { useFocusStore } from "@/features/canvas/store/focus.store";
+import { animateCameraTo, cameraForNode } from "@/features/canvas/utils/animate-camera";
 import { SpawnGhost } from "@/features/nodes";
 import { LoadingScreen } from "@/shared/components/ui/loading-screen";
 import {
@@ -31,9 +37,6 @@ const OricalcumTweaks = dynamic(() => import("@/features/toolbar").then((m) => (
   ssr: false,
 });
 const VisibilityMenu = dynamic(() => import("@/features/toolbar").then((m) => ({ default: m.VisibilityMenu })), {
-  ssr: false,
-});
-const AiInputBar = dynamic(() => import("@/features/ai-input").then((m) => ({ default: m.AiInputBar })), {
   ssr: false,
 });
 const AssistantPanel = dynamic(() => import("@/features/assistant").then((m) => ({ default: m.AssistantPanel })), {
@@ -114,10 +117,53 @@ export default function GraphsCanvasPage() {
         <EditorPanel />
         <OricalcumTweaks />
         <VisibilityMenu />
-        <AiInputBar />
         <AssistantPanel />
+        <NodespaceOrb />
       </div>
       <ContextMenu />
     </>
+  );
+}
+
+/**
+ * Bottom-right orb: AI presence (pulses while the assistant streams), chat
+ * trigger (click body → toggle the assistant), and graph navigator (click a
+ * node-dot → fly the camera + focus it). Replaces the old floating prompt bar
+ * and the spark FAB.
+ */
+function NodespaceOrb() {
+  const accent = useThemeStore((s) => s.accent);
+  const nodes = useNodeStore((s) => s.nodes);
+  const streaming = useAssistantStore((s) => s.streaming);
+  // The doc panel shares the bottom-right corner — hide the orb while editing.
+  const openDocId = useCanvasStore((s) => s.openDocId);
+
+  const dots = useMemo<OrbNodeDot[]>(
+    () => nodes.map((n) => ({ id: n.id, x: n.x, y: n.y, title: n.title })),
+    [nodes],
+  );
+
+  const onNavigate = useCallback((nodeId: string) => {
+    const node = useNodeStore.getState().nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+    const fs = useFocusStore.getState();
+    const cs = useCanvasStore.getState();
+    if (fs.focusedId === null) fs.enter(nodeId, { ...cs.camera });
+    else if (fs.focusedId !== nodeId) fs.hop(nodeId);
+    animateCameraTo(cameraForNode(node, cs.viewport));
+  }, []);
+
+  const onToggleChat = useCallback(() => useAssistantStore.getState().toggle(), []);
+
+  if (openDocId) return null;
+
+  return (
+    <OrbConsoleLazy
+      accent={accent}
+      nodes={dots}
+      active={streaming}
+      onNavigate={onNavigate}
+      onToggleChat={onToggleChat}
+    />
   );
 }

@@ -16,7 +16,8 @@ import {
 } from "@/shared/components/icons";
 import { ShapeGlyph } from "@/features/nodes/components/node-shapes";
 import { useContextMenuStore } from "@/shared/components/ui/context-menu.store";
-import { fetchProject, patchProjectShare } from "@/data/api/endpoints/projects.api";
+import { fetchNodespace, patchNodespaceShare } from "@/data/api/endpoints/nodespaces.api";
+import { useFilesStore } from "@/features/files/store/files.store";
 import type { ShapeId } from "@/shared/types";
 
 const EDGE_SNAP = 80;
@@ -52,6 +53,7 @@ export function Toolbar() {
   const hasNodes = useNodeStore((s) => s.nodes.length > 0);
   const visible = useThemeStore((s) => s.showToolbar && !s.hideAllUi);
   const activeId = useWorkspacesStore((s) => s.activeId);
+  const activeFileId = useFilesStore((s) => s.activeFileId);
   const openMenu = useContextMenuStore((s) => s.open);
 
   const onToolbarContextMenu = (e: MouseEvent) => {
@@ -89,11 +91,11 @@ export function Toolbar() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (!shareOpen || !activeId) return;
-    fetchProject(activeId)
-      .then((p) => setIsPublic(!!(p as Record<string, unknown>).is_public))
+    if (!shareOpen || !activeId || !activeFileId) return;
+    fetchNodespace(activeId, activeFileId)
+      .then((ns) => setIsPublic(!!ns.is_public))
       .catch(() => {});
-  }, [shareOpen, activeId]);
+  }, [shareOpen, activeId, activeFileId]);
 
   useEffect(() => {
     if (!shareOpen) return;
@@ -107,10 +109,10 @@ export function Toolbar() {
   }, [shareOpen]);
 
   const handleShareToggle = async () => {
-    if (!activeId || shareLoading) return;
+    if (!activeId || !activeFileId || shareLoading) return;
     setShareLoading(true);
     try {
-      await patchProjectShare(activeId, !isPublic);
+      await patchNodespaceShare(activeId, activeFileId, !isPublic);
       setIsPublic((v) => !v);
     } catch {
       // ignore
@@ -120,8 +122,8 @@ export function Toolbar() {
   };
 
   const handleCopyLink = () => {
-    if (!activeId) return;
-    navigator.clipboard.writeText(`${window.location.origin}/share/${activeId}`);
+    if (!activeFileId) return;
+    navigator.clipboard.writeText(`${window.location.origin}/share/${activeFileId}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -298,13 +300,13 @@ export function Toolbar() {
 
         {shareOpen && (
           <div className="share-flyout" onClick={(e) => e.stopPropagation()}>
-            <div className="share-flyout-label">// share.access</div>
+            <div className="share-flyout-label">// share.nodespace</div>
             <div className="share-row">
               <span>Public link</span>
               <button
                 className={`share-toggle${isPublic ? " on" : ""}`}
                 onClick={handleShareToggle}
-                disabled={shareLoading}
+                disabled={shareLoading || !activeFileId}
               >
                 {isPublic ? "on" : "off"}
               </button>

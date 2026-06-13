@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { NeuralOrbLazy } from "@/features/canvas/components/neural-orb.lazy";
 
 type Mode = "signin" | "signup";
 
@@ -63,13 +64,20 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: "#0b0c0e" }}>
+    <div
+      className="relative min-h-screen flex items-center justify-center overflow-hidden"
+      style={{ background: "#0b0c0e" }}
+    >
+      <NeuralOrbLazy accent="#10A37F" glow={60} />
       <div
-        className="w-full max-w-sm p-8 flex flex-col gap-6"
+        className="login-card relative w-full max-w-sm p-8 flex flex-col gap-6"
         style={{
-          background: "#111316",
-          border: "1px solid rgba(255,255,255,0.06)",
+          background: "rgba(17, 19, 22, 0.78)",
+          backdropFilter: "blur(14px)",
+          WebkitBackdropFilter: "blur(14px)",
+          border: "1px solid rgba(255,255,255,0.08)",
           borderRadius: "12px",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.5)",
         }}
       >
         <div className="flex flex-col gap-1">

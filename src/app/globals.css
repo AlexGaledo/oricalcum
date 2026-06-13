@@ -23,13 +23,38 @@
   --glow-strength: 1.2;
   --node-font: var(--font-mono);
   --app-font: var(--font-mono);
-  --surface: #16191d;
   --bg: #0b0c0e;
   --line: rgba(255, 255, 255, 0.08);
   --line-strong: rgba(255, 255, 255, 0.16);
   --text: #e7e9ec;
   --text-dim: rgba(231, 233, 236, 0.6);
   --text-faint: rgba(231, 233, 236, 0.35);
+
+  /* ── Surface ramp ──────────────────────────────────────────────
+     Three explicit levels. --surface stays an alias of level 2 so
+     existing rules keep working during/after migration. */
+  --surface-1: #111316;  /* panels, cards, flyouts */
+  --surface-2: #16191d;  /* raised / inputs */
+  --surface-3: #1c2127;  /* hover-raised (was referenced, never defined) */
+  --surface: var(--surface-2);
+
+  /* ── Radius scale ──────────────────────────────────────────────
+     Replaces the 7 ad-hoc values. 999px is reserved for status/notice
+     pills only; 50% for dots/circles. Everything else uses these. */
+  --r-1: 2px;   /* chips, kbd, swatches */
+  --r-2: 4px;   /* buttons, inputs, nodes — the base */
+  --r-3: 8px;   /* cards, panels, popovers, flyouts */
+  --r-4: 12px;  /* modals, hero, large surfaces */
+
+  /* ── HUD bracket-corner system (painted via ::before, see foot) ── */
+  --hud-corner: 9px;   /* leg length */
+  --hud-thick: 1px;    /* leg thickness */
+  --hud-inset: 6px;    /* distance from each edge */
+
+  /* ── Motion (restrained) ──────────────────────────────────────── */
+  --dur-fast: 0.12s;   /* hover / press */
+  --dur-base: 0.18s;   /* state transitions */
+  --ease-out: cubic-bezier(0.3, 0.7, 0.4, 1);
 }
 
 html, body {
@@ -294,12 +319,12 @@ button { font-family: inherit; }
   height: 28px;
   padding: 0 10px;
   border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--surface);
+  border-radius: var(--r-2);
+  background-color: var(--surface-1);
   color: var(--text-dim);
   font-size: 11px;
   cursor: pointer;
-  transition: border-color 0.12s, color 0.12s;
+  transition: border-color var(--dur-fast), color var(--dur-fast);
 }
 .iconbtn-pill:hover { border-color: var(--line-strong); color: var(--text); }
 .iconbtn-pill[data-active="1"] { border-color: var(--accent); color: var(--text); }
@@ -312,11 +337,12 @@ button { font-family: inherit; }
 
 /* ── Theme popover ────────────────────────────────────────────── */
 .theme-popover {
+  position: relative;
   width: 240px;
   padding: 12px;
-  background: var(--surface);
+  background-color: var(--surface-1);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-3);
   box-shadow: 0 12px 40px rgba(0,0,0,0.6);
   display: flex; flex-direction: column; gap: 8px;
 }
@@ -331,12 +357,12 @@ button { font-family: inherit; }
   display: flex; align-items: center; gap: 8px;
   padding: 6px 8px;
   border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--surface-2);
+  border-radius: var(--r-2);
+  background-color: var(--surface-2);
   color: var(--text-dim);
   font-size: 11px;
   cursor: pointer;
-  transition: border-color 0.12s, color 0.12s;
+  transition: border-color var(--dur-fast), color var(--dur-fast);
 }
 .theme-preset:hover { color: var(--text); border-color: var(--line-strong); }
 .theme-preset[data-active="1"] { color: var(--text); border-color: currentColor; }
@@ -374,9 +400,9 @@ button { font-family: inherit; }
   display: flex;
   gap: 4px;
   padding: 6px;
-  background: var(--surface);
+  background-color: var(--surface-1);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--r-3);
   z-index: 25;
 }
 .toolbar[data-side="left"] {
@@ -479,11 +505,11 @@ button { font-family: inherit; }
   width: 36px; height: 36px;
   display: flex; align-items: center; justify-content: center;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--r-2);
   background: transparent;
   color: var(--text-dim);
   cursor: pointer;
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--dur-fast), color var(--dur-fast);
 }
 .tool-btn svg { width: 18px; height: 18px; }
 .tool-btn:hover { background: var(--surface-2); color: var(--text); }
@@ -499,15 +525,15 @@ button { font-family: inherit; }
   top: 50%;
   transform: translateY(-50%);
   white-space: nowrap;
-  background: var(--surface);
+  background-color: var(--surface-1);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--r-2);
   padding: 4px 8px;
   font-size: 10.5px;
   color: var(--text-dim);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.12s;
+  transition: opacity var(--dur-fast);
 }
 .tool-tip kbd {
   font-family: var(--font-mono);
@@ -525,9 +551,9 @@ button { font-family: inherit; }
   top: 0;
   width: 200px;
   padding: 10px;
-  background: var(--surface);
+  background-color: var(--surface-1);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--r-3);
   box-shadow: 0 12px 40px rgba(0,0,0,0.6);
   display: flex; flex-direction: column; gap: 4px;
 }
@@ -556,9 +582,9 @@ button { font-family: inherit; }
   top: 0;
   width: 200px;
   padding: 10px;
-  background: var(--surface);
+  background-color: var(--surface-1);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--r-3);
   box-shadow: 0 12px 40px rgba(0,0,0,0.6);
   display: flex; flex-direction: column; gap: 8px;
   z-index: 100;
@@ -619,9 +645,9 @@ button { font-family: inherit; }
   right: 0;
   width: 280px;
   padding: 10px;
-  background: var(--surface);
+  background-color: var(--surface-1);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--r-3);
   box-shadow: 0 12px 40px rgba(0,0,0,0.6);
   display: flex; flex-direction: column; gap: 8px;
   z-index: 100;
@@ -744,9 +770,9 @@ button { font-family: inherit; }
   display: flex; align-items: center; gap: 6px;
   height: 28px;
   padding: 0 10px;
-  background: var(--surface);
+  background-color: var(--surface-1);
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--r-2);
   font-size: 10.5px;
   color: var(--text-dim);
 }
@@ -818,15 +844,15 @@ button { font-family: inherit; }
   height: 34px;
   padding: 0 14px;
   border: 1px solid var(--accent);
-  border-radius: 999px;
-  background: rgba(var(--accent-rgb), 0.08);
+  border-radius: var(--r-2);
+  background-color: rgba(var(--accent-rgb), 0.08);
   color: var(--accent);
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.06em;
   cursor: pointer;
   pointer-events: auto;
-  transition: background 0.12s;
+  transition: background var(--dur-fast);
 }
 .empty .cta:hover { background: rgba(var(--accent-rgb), 0.16); }
 .empty .cta svg { width: 14px; height: 14px; }
@@ -1166,9 +1192,9 @@ button { font-family: inherit; }
   top: 64px;
   width: 200px;
   height: 140px;
-  background: var(--surface);
+  background-color: var(--surface-1);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-3);
   padding: 8px;
   z-index: 20;
   display: flex;
@@ -1643,16 +1669,16 @@ button { font-family: inherit; }
 .vis-btn {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
-  background: var(--surface);
+  border-radius: var(--r-2);
+  background-color: var(--surface-1);
   border: 1px solid var(--line);
   color: var(--text-dim);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: color 0.12s ease, border-color 0.12s ease,
-    background 0.12s ease, transform 0.12s ease;
+  transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease,
+    background var(--dur-fast) ease, transform var(--dur-fast) ease;
 }
 .vis-btn:hover {
   color: var(--text);
@@ -1670,9 +1696,9 @@ button { font-family: inherit; }
   top: calc(100% + 8px);
   right: 0;
   width: 200px;
-  background: var(--surface);
+  background-color: var(--surface-1);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-3);
   padding: 8px;
   font-family: var(--app-font);
   font-size: 11px;
@@ -1809,7 +1835,7 @@ button { font-family: inherit; }
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--r-2);
   cursor: pointer;
   border: 0;
   background: transparent;
@@ -1877,22 +1903,26 @@ button { font-family: inherit; }
   margin: 0;
   font-family: var(--font-mono);
 }
+/* Canonical primary action — pair with class "hud-frame" in markup for corners. */
 .dash-new-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  background: var(--accent);
-  color: #fff;
-  border: 0;
-  border-radius: 6px;
-  font-size: 13px;
-  font-family: inherit;
+  gap: 7px;
+  height: 34px;
+  padding: 0 14px;
+  background-color: rgba(var(--accent-rgb), 0.08);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
   cursor: pointer;
-  transition: opacity 0.12s;
+  transition: background-color var(--dur-fast), box-shadow var(--dur-fast);
 }
 .dash-new-btn:hover {
-  opacity: 0.88;
+  background-color: rgba(var(--accent-rgb), 0.16);
+  box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.4), 0 0 18px rgba(var(--accent-rgb), 0.22);
 }
 
 .dash-body {
@@ -1922,12 +1952,13 @@ button { font-family: inherit; }
   margin-top: 8px;
 }
 .dash-stat {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  background: var(--surface);
+  background-color: var(--surface-1);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-3);
   padding: 20px 28px;
   min-width: 120px;
 }
@@ -1953,18 +1984,20 @@ button { font-family: inherit; }
 
 /* Workspace card */
 .ws-card {
-  background: var(--surface);
+  background-color: var(--surface-1);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--r-3);
+  --hud-corner: 9px;
   cursor: pointer;
   position: relative;
   overflow: hidden;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color var(--dur-base), transform var(--dur-base), box-shadow var(--dur-base);
   user-select: none;
 }
 .ws-card:hover {
-  border-color: var(--line-strong);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  border-color: rgba(var(--accent-rgb), 0.4);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(var(--accent-rgb), 0.15);
 }
 .ws-card-accent {
   height: 4px;
@@ -2056,9 +2089,9 @@ button { font-family: inherit; }
   top: 34px;
   right: 10px;
   z-index: 20;
-  background: var(--surface);
+  background-color: var(--surface-1);
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
+  border-radius: var(--r-3);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   min-width: 120px;
   padding: 4px;
@@ -2094,9 +2127,10 @@ button { font-family: inherit; }
   z-index: 200;
 }
 .ws-modal {
-  background: var(--surface);
+  position: relative;
+  background-color: var(--surface-1);
   border: 1px solid var(--line-strong);
-  border-radius: 12px;
+  border-radius: var(--r-4);
   padding: 28px;
   width: 380px;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
@@ -2118,10 +2152,10 @@ button { font-family: inherit; }
 .ws-modal input[type="text"],
 .ws-modal textarea {
   width: 100%;
-  background: var(--bg);
-  border: 1px solid var(--line-strong);
+  background-color: var(--surface-2);
+  border: 1px solid var(--line);
   color: var(--text);
-  border-radius: 6px;
+  border-radius: var(--r-2);
   padding: 8px 10px;
   font-size: 13px;
   font-family: inherit;
@@ -2163,20 +2197,30 @@ button { font-family: inherit; }
   border: 1px solid var(--line-strong);
   color: var(--text-dim);
   padding: 7px 16px;
-  border-radius: 6px;
+  border-radius: var(--r-2);
   cursor: pointer;
   font-size: 13px;
   font-family: inherit;
+  transition: color var(--dur-fast), border-color var(--dur-fast);
 }
+.ws-modal-actions .cancel:hover { color: var(--text); border-color: var(--accent); }
 .ws-modal-actions .submit {
-  background: var(--accent);
-  border: 0;
-  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(var(--accent-rgb), 0.1);
+  border: 1px solid var(--accent);
+  color: var(--accent);
   padding: 7px 16px;
-  border-radius: 6px;
+  border-radius: var(--r-2);
   cursor: pointer;
   font-size: 13px;
   font-family: inherit;
+  transition: background-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.ws-modal-actions .submit:not(:disabled):hover {
+  background-color: rgba(var(--accent-rgb), 0.2);
+  box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.25);
 }
 .ws-modal-actions .submit:disabled {
   opacity: 0.45;
@@ -2206,7 +2250,7 @@ button { font-family: inherit; }
   bottom: clamp(48px, 15vh, 120px);
   z-index: 40;
   width: min(640px, calc(100vw - 64px));
-  border-radius: 16px;
+  border-radius: var(--r-3);
   background: rgba(22, 25, 29, 0.82);
   backdrop-filter: blur(28px) saturate(160%);
   -webkit-backdrop-filter: blur(28px) saturate(160%);
@@ -2244,7 +2288,7 @@ button { font-family: inherit; }
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-2);
   background: transparent;
   color: var(--text-faint);
   cursor: grab;
@@ -2300,11 +2344,11 @@ button { font-family: inherit; }
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-2);
   background: transparent;
   color: var(--text-faint);
   cursor: pointer;
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--dur-fast), color var(--dur-fast);
 }
 
 .ai-action-btn:hover {
@@ -2328,12 +2372,12 @@ button { font-family: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 0;
-  border-radius: 8px;
-  background: var(--accent);
-  color: #fff;
+  border: 1px solid var(--accent);
+  border-radius: var(--r-2);
+  background-color: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent);
   cursor: pointer;
-  transition: opacity 0.15s, transform 0.12s;
+  transition: background-color var(--dur-fast), box-shadow var(--dur-fast), transform var(--dur-fast);
 }
 
 .ai-send-btn:disabled {
@@ -2342,7 +2386,8 @@ button { font-family: inherit; }
 }
 
 .ai-send-btn:not(:disabled):hover {
-  opacity: 0.85;
+  background-color: rgba(var(--accent-rgb), 0.22);
+  box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.3);
   transform: scale(1.04);
 }
 
@@ -3281,12 +3326,12 @@ button { font-family: inherit; }
   gap: 11px;
   background: none;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--r-2);
   padding: 11px 12px;
   cursor: pointer;
   color: var(--text-dim);
   font-family: var(--font-mono);
-  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  transition: color var(--dur-base), background var(--dur-base), border-color var(--dur-base);
   overflow: hidden;
   animation: hub-rise 0.5s both;
 }
@@ -3379,10 +3424,10 @@ button { font-family: inherit; }
   position: relative;
   padding: 30px 32px 34px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--r-4);
   background:
     linear-gradient(135deg, rgba(var(--accent-rgb), 0.06), transparent 60%),
-    var(--surface);
+    var(--surface-1);
   overflow: hidden;
   animation: hub-rise 0.55s both;
 }
@@ -3429,7 +3474,7 @@ button { font-family: inherit; }
   margin-top: 18px;
   background: var(--line);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--r-3);
   overflow: hidden;
 }
 .hub-tele {
@@ -3471,12 +3516,13 @@ button { font-family: inherit; }
   gap: 10px;
   text-align: left;
   padding: 20px;
-  background: var(--surface);
+  background-color: var(--surface-1);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--r-3);
+  --hud-corner: 9px;
   cursor: pointer;
   overflow: hidden;
-  transition: border-color 0.18s, transform 0.18s, box-shadow 0.18s;
+  transition: border-color var(--dur-base), transform var(--dur-base), box-shadow var(--dur-base);
   animation: hub-rise 0.5s both;
 }
 .hub-module:hover {
@@ -3541,12 +3587,12 @@ button { font-family: inherit; }
   justify-content: center;
   width: 30px;
   height: 30px;
-  border-radius: 7px;
+  border-radius: var(--r-2);
   border: 1px solid var(--line);
-  background: var(--surface);
+  background-color: var(--surface-1);
   color: var(--text-dim);
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s, box-shadow 0.15s;
+  transition: color var(--dur-base), border-color var(--dur-base), box-shadow var(--dur-base);
 }
 .hub-canvas-back:hover {
   color: var(--accent);
@@ -3911,6 +3957,22 @@ button { font-family: inherit; }
 .assistant-spark-icon {
   width: 20px;
   height: 20px;
+}
+
+/* ── Console orb (bottom-right): AI presence + chat trigger + navigator ── */
+.orb-console {
+  position: fixed;
+  right: 8px;
+  bottom: 8px;
+  width: clamp(140px, 16vw, 184px);
+  height: clamp(140px, 16vw, 184px);
+  z-index: 40; /* below the chat panel (41), above canvas chrome */
+  cursor: pointer;
+  pointer-events: auto;
+}
+.orb-console canvas { display: block; width: 100%; height: 100%; }
+@media (max-width: 640px) {
+  .orb-console { width: 120px; height: 120px; right: 4px; bottom: 4px; }
 }
 
 .assistant-panel {
@@ -5217,4 +5279,616 @@ button { font-family: inherit; }
     max-width: none;
     height: min(70vh, 520px);
   }
+}
+
+/* ════ Neural redesign — 2.5D AI-brain theme ═══════════════════ */
+
+/* Orb background host (three.js canvas mounts inside) */
+.neural-orb {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.neural-orb canvas { display: block; width: 100%; height: 100%; }
+
+/* Neural bg mode: transparent so the orb shows through.
+   Fixed (camera-independent) vignette keeps edge-of-screen chrome and
+   node text readable over the brightest part of the orb. */
+.canvas-bg.bg-neural {
+  background-color: transparent;
+  background-image: radial-gradient(
+    ellipse at 50% 50%,
+    rgba(8, 9, 11, 0.3) 0%,
+    rgba(8, 9, 11, 0.55) 75%,
+    rgba(8, 9, 11, 0.85) 100%
+  );
+}
+
+/* Splash / login content floats above the orb */
+.splash-inner { position: relative; z-index: 1; }
+
+/* ── Neuron-glass nodes ───────────────────────────────────────── */
+.node {
+  border-radius: 9px;
+  border-color: rgba(var(--accent-rgb), 0.5);
+  background:
+    linear-gradient(155deg, rgba(var(--accent-rgb), 0.12), rgba(var(--accent-rgb), 0.02) 45%, transparent 70%),
+    rgba(19, 22, 26, 0.55);
+  -webkit-backdrop-filter: blur(9px) saturate(1.3);
+  backdrop-filter: blur(9px) saturate(1.3);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 0 22px rgba(var(--accent-rgb), 0.05),
+    0 10px 26px rgba(0, 0, 0, 0.38),
+    0 0 calc(14px * var(--glow-strength)) rgba(var(--accent-rgb), calc(0.18 * var(--glow-strength)));
+}
+.node:hover {
+  border-color: rgba(var(--accent-rgb), 0.75);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 0 26px rgba(var(--accent-rgb), 0.08),
+    0 16px 34px rgba(0, 0, 0, 0.42),
+    0 0 calc(22px * var(--glow-strength)) rgba(var(--accent-rgb), calc(0.3 * var(--glow-strength)));
+}
+.node.is-selected {
+  border-color: var(--accent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 0 30px rgba(var(--accent-rgb), 0.1),
+    0 0 0 1px var(--accent),
+    0 18px 38px rgba(0, 0, 0, 0.45),
+    0 0 calc(30px * var(--glow-strength)) rgba(var(--accent-rgb), calc(0.45 * var(--glow-strength)));
+}
+.node.is-connect-source {
+  box-shadow:
+    inset 0 0 30px rgba(var(--accent-rgb), 0.12),
+    0 0 0 1.5px var(--accent),
+    0 0 calc(38px * var(--glow-strength)) rgba(var(--accent-rgb), calc(0.65 * var(--glow-strength)));
+}
+/* SVG-shaped nodes (hexagon/diamond/cloud) have a transparent host div —
+   a rectangular backdrop blur would outline the bounding box, so skip it. */
+.node[data-shape="hexagon"],
+.node[data-shape="diamond"],
+.node[data-shape="cloud"] {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Ports as synapse dots: lit core, accent halo */
+.node-port {
+  background: radial-gradient(
+    circle at 50% 32%,
+    rgba(255, 255, 255, 0.9),
+    rgba(var(--accent-rgb), 0.95) 45%,
+    rgba(var(--accent-rgb), 0.35)
+  );
+  border: 1px solid rgba(var(--accent-rgb), 0.85);
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.65);
+}
+.node-port:hover { box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.95); }
+
+.node-resize-handle {
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.7);
+}
+
+/* ── Synaptic edges ───────────────────────────────────────────── */
+/* Traveling signal packet on flow-style connections */
+.edge-spark {
+  fill: #ffffff;
+  filter: drop-shadow(0 0 4px rgba(var(--accent-rgb), 1))
+          drop-shadow(0 0 10px rgba(var(--accent-rgb), 0.7));
+}
+
+/* ── Chrome glass pass ────────────────────────────────────────── */
+/* Same recipe the tweaks panel already uses: translucent surface +
+   backdrop blur + hairline highlight. */
+.toolbar,
+.theme-popover,
+.shape-flyout,
+.share-flyout,
+.snapshots-flyout,
+.share-banner,
+.status-chip,
+.iconbtn-pill,
+.minimap,
+.ctx-menu,
+.docpanel,
+.doc-overlay-content {
+  background: rgba(19, 22, 27, 0.72);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+}
+.toolbar,
+.theme-popover,
+.shape-flyout,
+.share-flyout,
+.snapshots-flyout,
+.ctx-menu {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 12px 40px rgba(0, 0, 0, 0.55),
+    0 0 24px rgba(var(--accent-rgb), 0.06);
+}
+
+/* Tooltips stay opaque — blur flickers on fade-in and they sit over text */
+.tool-tip { background: var(--surface); }
+
+@media (prefers-reduced-motion: reduce) {
+  .edge-line.style-flow,
+  .edge-line.style-pulse { animation: none; }
+}
+
+/* ── Skill-tree focus mode ────────────────────────────────────── */
+.node.is-focus {
+  border-color: var(--accent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 0 34px rgba(var(--accent-rgb), 0.14),
+    0 0 0 1.5px var(--accent),
+    0 22px 44px rgba(0, 0, 0, 0.5),
+    0 0 calc(40px * var(--glow-strength)) rgba(var(--accent-rgb), calc(0.55 * var(--glow-strength)));
+}
+.node.is-neighbor {
+  border-color: rgba(var(--accent-rgb), 0.7);
+}
+.node.is-dim {
+  filter: brightness(0.42) saturate(0.35);
+  transition: filter 0.35s ease;
+}
+.node.is-focus,
+.node.is-neighbor {
+  filter: none;
+  transition: filter 0.35s ease, box-shadow 0.16s ease;
+}
+
+.edge-line.is-dim-edge {
+  opacity: 0.08;
+  filter: none;
+  transition: opacity 0.35s ease;
+}
+
+/* Focus ring: radial actions around the focused node */
+.focus-ring {
+  position: absolute;
+  pointer-events: none;
+  z-index: 4;
+  border: 1px dashed rgba(var(--accent-rgb), 0.35);
+  border-radius: 14px;
+}
+.focus-ring-btn {
+  position: absolute;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(var(--accent-rgb), 0.6);
+  background: rgba(19, 22, 27, 0.85);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.35);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, color 0.12s ease;
+}
+.focus-ring-btn svg { width: 13px; height: 13px; }
+.focus-ring-btn:hover {
+  transform: scale(1.18);
+  box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.7);
+}
+.focus-ring-btn.top { top: -13px; left: 50%; margin-left: -13px; }
+.focus-ring-btn.top:hover { transform: scale(1.18); }
+.focus-ring-btn.right { right: -13px; top: 50%; margin-top: -13px; }
+.focus-ring-btn.bottom { bottom: -13px; left: 50%; margin-left: -13px; }
+.focus-ring-btn.left { left: -13px; top: 50%; margin-top: -13px; }
+.focus-ring-btn.is-danger { color: #f0796b; border-color: rgba(240, 121, 107, 0.6); box-shadow: 0 0 10px rgba(240, 121, 107, 0.3); }
+.focus-ring-btn.is-danger:hover { box-shadow: 0 0 16px rgba(240, 121, 107, 0.6); }
+
+/* Breadcrumb trail of focus hops */
+.focus-trail {
+  position: fixed;
+  bottom: 58px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: min(720px, 80vw);
+  overflow-x: auto;
+  padding: 5px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--accent-rgb), 0.25);
+  background: rgba(19, 22, 27, 0.72);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  z-index: 30;
+  scrollbar-width: none;
+}
+.focus-trail::-webkit-scrollbar { display: none; }
+.focus-trail-exit {
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 14px;
+  line-height: 1;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.focus-trail-exit:hover { color: var(--accent); background: rgba(var(--accent-rgb), 0.12); }
+.focus-trail-step { display: inline-flex; align-items: center; gap: 4px; }
+.focus-trail-sep { color: var(--text-faint); font-size: 11px; }
+.focus-trail-chip {
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.focus-trail-chip:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+.focus-trail-chip[data-current="1"] {
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.14);
+}
+
+/* ── Node→orb tethers ─────────────────────────────────────────── */
+.tether {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1;
+  opacity: 0.06;
+  transition: opacity 0.3s ease;
+}
+.tether.is-hot {
+  opacity: 0.4;
+  filter: drop-shadow(0 0 5px rgba(var(--accent-rgb), 0.5));
+}
+.tether-pulse {
+  fill: #ffffff;
+  filter: drop-shadow(0 0 4px rgba(var(--accent-rgb), 1))
+          drop-shadow(0 0 9px rgba(var(--accent-rgb), 0.6));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node.is-dim, .node.is-focus, .node.is-neighbor, .edge-line.is-dim-edge, .tether { transition: none; }
+}
+
+/* ── Cinematic splash ─────────────────────────────────────────── */
+.splash-cinematic { cursor: pointer; }
+.splash-cinematic .splash-logo,
+.splash-cinematic .splash-title,
+.splash-cinematic .splash-motto,
+.splash-cinematic .splash-skip {
+  opacity: 0;
+  animation: splash-rise 0.8s ease forwards;
+}
+.splash-cinematic .splash-logo { animation-delay: 0.5s; }
+.splash-cinematic .splash-title { animation-delay: 0.75s; }
+.splash-cinematic .splash-motto { animation-delay: 0.95s; }
+.splash-cinematic .splash-skip { animation-delay: 1.4s; }
+.splash-skip {
+  margin: 18px 0 0;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+@keyframes splash-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.splash.fade-out { opacity: 0; transition: opacity 300ms ease-in; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .splash-cinematic .splash-logo,
+  .splash-cinematic .splash-title,
+  .splash-cinematic .splash-motto,
+  .splash-cinematic .splash-skip { animation: none; opacity: 1; }
+}
+
+/* ── Login polish ─────────────────────────────────────────────── */
+.login-card {
+  animation: login-rise 0.55s cubic-bezier(0.3, 0.7, 0.4, 1) both;
+}
+.login-card::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  border: 1px solid rgba(var(--accent-rgb), 0.0);
+  animation: login-breathe 5s ease-in-out 1s infinite;
+}
+@keyframes login-rise {
+  from { opacity: 0; transform: translateY(16px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes login-breathe {
+  0%, 100% { border-color: rgba(var(--accent-rgb), 0.06); box-shadow: 0 0 0 rgba(var(--accent-rgb), 0); }
+  50% { border-color: rgba(var(--accent-rgb), 0.28); box-shadow: 0 0 28px rgba(var(--accent-rgb), 0.10); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-card { animation: none; }
+  .login-card::after { animation: none; }
+}
+
+/* ── Peripheral orb on dashboard + hubs ───────────────────────── */
+.dash {
+  position: relative;
+  isolation: isolate;
+}
+.dash > .neural-orb,
+.hub-shell > .neural-orb { z-index: 0; }
+.dash-nav,
+.dash-main { position: relative; z-index: 1; }
+/* hub-rail / hub-content already sit at z-index 1 inside .hub-shell */
+.hub-content { position: relative; z-index: 1; }
+
+/* Workspace cards: glass to match the canvas world */
+.ws-card {
+  background: rgba(19, 22, 27, 0.6);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  backdrop-filter: blur(14px) saturate(1.3);
+}
+.ws-card:hover {
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(var(--accent-rgb), 0.25),
+    0 0 22px rgba(var(--accent-rgb), 0.12);
+  transform: translateY(-2px);
+}
+.ws-card { transition: border-color 0.15s, box-shadow 0.2s, transform 0.2s; }
+
+/* Dashboard nav rail: translucent over the orb */
+.dash-nav {
+  background: rgba(17, 19, 22, 0.78);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  backdrop-filter: blur(16px) saturate(1.3);
+}
+
+/* ════ HUD glass — transparent sci-fi pass ═════════════════════ */
+:root {
+  --hud-fill: rgba(10, 13, 17, 0.36);
+  --hud-fill-hover: rgba(13, 17, 22, 0.56);
+  --hud-line: rgba(255, 255, 255, 0.1);
+  --hud-scan: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.014) 0px,
+    rgba(255, 255, 255, 0.014) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* Surfaces drop to ~36% fill — the orb and starfield stay visible through
+   every panel. Blur carries readability instead of darkness. */
+.ws-card,
+.dash-nav,
+.hub-rail,
+.hub-tele,
+.hub-module,
+.dash-stat,
+.file-explorer,
+.toolbar,
+.theme-popover,
+.shape-flyout,
+.share-flyout,
+.snapshots-flyout,
+.vis-pop,
+.vis-btn,
+.ws-card-drop,
+.hub-canvas-back,
+.ctx-menu,
+.minimap,
+.status-chip,
+.iconbtn-pill,
+.share-banner {
+  background: var(--hud-scan), var(--hud-fill);
+  -webkit-backdrop-filter: blur(22px) saturate(1.5);
+  backdrop-filter: blur(22px) saturate(1.5);
+  border-color: var(--hud-line);
+}
+/* The telemetry strip used a solid gap-line trick — keep the hairlines, lose the slab */
+.hub-telemetry { background: rgba(255, 255, 255, 0.06); }
+
+/* Prompt bar: slightly denser — users type over the orb's brightest spot */
+.ai-bar {
+  background: var(--hud-scan), rgba(11, 14, 18, 0.55);
+  -webkit-backdrop-filter: blur(26px) saturate(1.5);
+  backdrop-filter: blur(26px) saturate(1.5);
+  border-color: var(--hud-line);
+}
+
+/* Long-form editors stay near-solid — moving background under prose tires eyes */
+.docpanel,
+.doc-overlay-content {
+  background: rgba(15, 18, 22, 0.92);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  backdrop-filter: blur(24px) saturate(1.2);
+}
+
+/* Materialize on hover: panels "power on" as you reach for them */
+.ws-card,
+.hub-module,
+.iconbtn-pill,
+.status-chip {
+  transition: background 0.22s ease, border-color 0.22s ease,
+    box-shadow 0.22s ease, transform 0.2s ease;
+}
+.ws-card:hover,
+.hub-module:hover,
+.iconbtn-pill:hover {
+  background: var(--hud-scan), var(--hud-fill-hover);
+  border-color: rgba(var(--accent-rgb), 0.45);
+}
+.hub-module:hover {
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.45),
+    0 0 22px rgba(var(--accent-rgb), 0.12);
+  transform: translateY(-2px);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Corner brackets — the unifying HUD schema for every box & primary
+   action. One ::before paints all four corners via background strips,
+   tokenised so leg length / thickness / inset tune globally.
+   Add `.hud-bracket` to any element to opt it in.
+   ════════════════════════════════════════════════════════════════ */
+.ws-card::before,
+.hub-module::before,
+.hub-tele::before,
+.file-explorer::before,
+.ai-bar::before,
+.minimap::before,
+.toolbar::before,
+.dash-stat::before,
+.ws-modal::before,
+.theme-popover::before,
+.shape-flyout::before,
+.share-flyout::before,
+.snapshots-flyout::before,
+.vis-pop::before,
+.ws-card-drop::before,
+.dash-new-btn::before,
+.empty .cta::before,
+.ws-modal-actions .submit::before,
+.hud-bracket::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  --_c: var(--hud-corner);
+  --_t: var(--hud-thick);
+  --_i: var(--hud-inset);
+  background:
+    linear-gradient(var(--accent), var(--accent)) left var(--_i) top var(--_i) / var(--_c) var(--_t),
+    linear-gradient(var(--accent), var(--accent)) left var(--_i) top var(--_i) / var(--_t) var(--_c),
+    linear-gradient(var(--accent), var(--accent)) right var(--_i) top var(--_i) / var(--_c) var(--_t),
+    linear-gradient(var(--accent), var(--accent)) right var(--_i) top var(--_i) / var(--_t) var(--_c),
+    linear-gradient(var(--accent), var(--accent)) left var(--_i) bottom var(--_i) / var(--_c) var(--_t),
+    linear-gradient(var(--accent), var(--accent)) left var(--_i) bottom var(--_i) / var(--_t) var(--_c),
+    linear-gradient(var(--accent), var(--accent)) right var(--_i) bottom var(--_i) / var(--_c) var(--_t),
+    linear-gradient(var(--accent), var(--accent)) right var(--_i) bottom var(--_i) / var(--_t) var(--_c);
+  background-repeat: no-repeat;
+  opacity: 0.42;
+  transition: opacity var(--dur-base) ease;
+}
+/* Interactive boxes/buttons light their corners up on hover. */
+.ws-card:hover::before,
+.hub-module:hover::before,
+.dash-new-btn:hover::before,
+.empty .cta:hover::before,
+.ws-modal-actions .submit:hover::before { opacity: 0.95; }
+
+/* Tighter corners + relative anchor for the smaller primary buttons. */
+.dash-new-btn,
+.empty .cta,
+.ws-modal-actions .submit { position: relative; --hud-inset: 4px; --hud-corner: 7px; }
+
+/* Border light sweep along the top edge of hovered cards */
+.ws-card { position: relative; }
+.ws-card::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(var(--accent-rgb), 0.9), transparent);
+  background-size: 45% 100%;
+  background-repeat: no-repeat;
+  opacity: 0;
+}
+.ws-card:hover::after {
+  opacity: 1;
+  animation: hud-line-sweep 1.6s linear infinite;
+}
+@keyframes hud-line-sweep {
+  from { background-position: -45% 0; }
+  to { background-position: 145% 0; }
+}
+
+/* HUD micro-labels */
+.hud-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.ws-card-tag {
+  position: absolute;
+  top: 12px;
+  right: 38px; /* clear of the ... menu button */
+  z-index: 1;
+}
+.dash-sys-tag { margin-left: 14px; margin-right: auto; }
+.hud-tag-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.8);
+  animation: hud-dot-pulse 2.4s ease-in-out infinite;
+}
+.hud-tag-dot[data-offline="1"] {
+  background: #f0796b;
+  box-shadow: 0 0 6px rgba(240, 121, 107, 0.8);
+}
+@keyframes hud-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ws-card:hover::after { animation: none; opacity: 0.6; }
+  .hud-tag-dot { animation: none; }
+  /* Entrance + hover-sweep flourishes: hold still, show the end state. */
+  .hub-hero,
+  .hub-tele,
+  .hub-module,
+  .hub-rail-item { animation: none; }
+  .hub-module::after { animation: none; }
+  .ws-card,
+  .hub-module,
+  .dash-new-btn,
+  .empty .cta { transition: none; }
+}
+
+/* ── Keyboard focus ring — one consistent affordance across the HUD ──
+   Pointer users see nothing extra; keyboard users get an accent ring. */
+.dash-new-btn:focus-visible,
+.dash-nav-item:focus-visible,
+.tool-btn:focus-visible,
+.vis-btn:focus-visible,
+.ai-send-btn:focus-visible,
+.ai-action-btn:focus-visible,
+.hub-module:focus-visible,
+.hub-rail-item:focus-visible,
+.ws-card:focus-visible,
+.iconbtn-pill:focus-visible,
+.theme-preset:focus-visible,
+.ws-modal-actions .submit:focus-visible,
+.ws-modal-actions .cancel:focus-visible,
+.empty .cta:focus-visible,
+.hub-canvas-back:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px rgba(var(--accent-rgb), 0.55);
 }

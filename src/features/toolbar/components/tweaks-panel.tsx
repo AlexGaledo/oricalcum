@@ -414,6 +414,7 @@ export function OricalcumTweaks() {
           label="Background"
           value={t.bgMode}
           options={[
+            { value: "neural", label: "Neural" },
             { value: "plain", label: "Plain" },
             { value: "grid", label: "Grid" },
             { value: "paper", label: "Paper" },

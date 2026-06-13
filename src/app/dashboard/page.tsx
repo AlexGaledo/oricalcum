@@ -12,6 +12,8 @@ import { Skeleton } from "@/shared/components/ui/skeleton";
 import { useIsMobile } from "@/shared/hooks/use-is-mobile";
 import { Logo } from "@/shared/components/icons/logo";
 import { supabase } from "@/lib/supabase";
+import { NeuralOrbLazy } from "@/features/canvas/components/neural-orb.lazy";
+import { useThemeStore } from "@/features/themes/store/theme.store";
 
 type NavSection = "workspaces" | "recent" | "templates" | "settings" | "usage";
 
@@ -28,6 +30,7 @@ export default function DashboardPage() {
 
   const navGuard = useRef(false);
   const isMobile = useIsMobile();
+  const accent = useThemeStore((s) => s.accent);
   const [navOpen, setNavOpen] = useState(true);
   const [section, setSection] = useState<NavSection>("workspaces");
 
@@ -89,6 +92,7 @@ export default function DashboardPage() {
     <>
       {transitioning && <div className="dash-transition" />}
       <div className="dash">
+      <NeuralOrbLazy accent={accent} glow={50} variant="peripheral" />
       {/* Left nav */}
       <nav className="dash-nav" data-open={navOpen ? "1" : "0"} aria-label="Dashboard navigation">
         <div className="dash-nav-top">
@@ -148,6 +152,10 @@ export default function DashboardPage() {
             </svg>
           </button>
           <h2>// {section}</h2>
+          <span className="hud-tag dash-sys-tag" aria-hidden="true">
+            <span className="hud-tag-dot" data-offline={isOffline ? "1" : "0"} />
+            {isOffline ? "SYS // OFFLINE" : "SYS // ONLINE"}
+          </span>
           {(section === "workspaces" || section === "recent") && (
             <button type="button" className="dash-new-btn" onClick={() => setModalOpen(true)}>
               <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

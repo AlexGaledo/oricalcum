@@ -14,6 +14,8 @@ interface EdgeBezierProps {
   style: EdgeAnimationStyle;
   speed: number;
   isSelected: boolean;
+  /** Focus mode: edge doesn't touch the focused node — fade it back. */
+  dimmed?: boolean;
   onClick: (e: MouseEvent) => void;
   onContextMenu?: (e: MouseEvent) => void;
 }
@@ -26,6 +28,7 @@ export function EdgeBezier({
   style,
   speed,
   isSelected,
+  dimmed = false,
   onClick,
   onContextMenu,
 }: EdgeBezierProps) {
@@ -38,10 +41,33 @@ export function EdgeBezier({
     animated && style === "flow" && "style-flow",
     animated && style === "pulse" && "style-pulse",
     isSelected && "is-selected",
+    dimmed && "is-dim-edge",
   );
-  const cssVars = { "--connect-duration": `${dur}s` } as React.CSSProperties;
+  const gradientId = `edge-grad-${edge.id}`;
+  const lineStyle: React.CSSProperties = {
+    "--connect-duration": `${dur}s`,
+    // Synaptic gradient: bright at the center of the run, fading into the
+    // ports. Selected edges fall back to the solid CSS stroke for clarity.
+    ...(isSelected ? {} : { stroke: `url(#${gradientId})` }),
+  } as React.CSSProperties;
   return (
     <g>
+      {!isSelected && (
+        <defs>
+          <linearGradient
+            id={gradientId}
+            gradientUnits="userSpaceOnUse"
+            x1={sp.x}
+            y1={sp.y}
+            x2={tp.x}
+            y2={tp.y}
+          >
+            <stop offset="0" stopColor="var(--accent)" stopOpacity="0.3" />
+            <stop offset="0.5" stopColor="var(--accent)" stopOpacity="1" />
+            <stop offset="1" stopColor="var(--accent)" stopOpacity="0.3" />
+          </linearGradient>
+        </defs>
+      )}
       <path
         d={d}
         stroke="transparent"
@@ -52,7 +78,12 @@ export function EdgeBezier({
         onContextMenu={onContextMenu}
         style={{ cursor: "pointer" }}
       />
-      <path className={cls} d={d} style={cssVars} onClick={onClick} onContextMenu={onContextMenu} />
+      <path className={cls} d={d} style={lineStyle} onClick={onClick} onContextMenu={onContextMenu} />
+      {animated && !dimmed && style === "flow" && (
+        <circle r="2.4" className="edge-spark">
+          <animateMotion dur={`${dur}s`} repeatCount="indefinite" path={d} rotate="auto" />
+        </circle>
+      )}
       {animated && style === "orbit" && (
         <circle r="3.5" className="edge-orbit">
           <animateMotion dur={`${dur}s`} repeatCount="indefinite" path={d} rotate="auto" />

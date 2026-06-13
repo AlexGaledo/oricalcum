@@ -13,8 +13,9 @@ function clearUserCaches() {
   useFilesStore.getState().reset();
 }
 
+// "/" is the cinematic splash — it checks the session and routes itself.
 const isPublicRoute = (path: string) =>
-  path === "/login" || path === "/auth/callback" || path.startsWith("/share/");
+  path === "/" || path === "/login" || path === "/auth/callback" || path.startsWith("/share/");
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();

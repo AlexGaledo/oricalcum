@@ -13,6 +13,14 @@ import { useNodeStore } from "@/features/nodes/store/node.store";
 import { useEdgeStore } from "@/features/edges/store/edge.store";
 import { useThemeStore } from "@/features/themes/store/theme.store";
 import { NodeCard } from "@/features/nodes/components/node-card";
+import { useFocusStore } from "@/features/canvas/store/focus.store";
+import {
+  animateCameraTo,
+  cameraForNode,
+  cancelCameraAnimation,
+} from "@/features/canvas/utils/animate-camera";
+import { FocusRing } from "@/features/canvas/components/focus-ring";
+import { FocusTrail } from "@/features/canvas/components/focus-trail";
 import { ShapeGlyph } from "@/features/nodes/components/node-shapes";
 import { EdgeBezier } from "@/features/edges/components/edge-bezier";
 import { useContextMenuStore } from "@/shared/components/ui/context-menu.store";
@@ -81,6 +89,26 @@ export function Canvas({ readOnly = false }: { readOnly?: boolean }) {
   useKeyboardShortcuts();
   useViewportTracking();
 
+  const focusedId = useFocusStore((s) => s.focusedId);
+
+  // Direct neighbors of the focused node stay lit in focus mode.
+  const neighborIds = useMemo(() => {
+    if (!focusedId) return new Set<string>();
+    const ids = new Set<string>();
+    for (const ed of edges) {
+      if (ed.from === focusedId) ids.add(ed.to);
+      else if (ed.to === focusedId) ids.add(ed.from);
+    }
+    return ids;
+  }, [edges, focusedId]);
+
+  const focusedNode = focusedId ? nodes.find((n) => n.id === focusedId) : undefined;
+
+  // Focused node deleted (locally or via sync) → drop out of focus mode.
+  useEffect(() => {
+    if (focusedId && !focusedNode) useFocusStore.getState().exit();
+  }, [focusedId, focusedNode]);
+
   const scale = nodeScale / 100;
 
   const screenToCanvas = useCallback(
@@ -110,6 +138,7 @@ export function Canvas({ readOnly = false }: { readOnly?: boolean }) {
   const onWheel = useCallback(
     (e: WheelEvent) => {
       e.preventDefault();
+      cancelCameraAnimation(); // user takes over from any focus glide
       const r = canvasRef.current!.getBoundingClientRect();
       const mx = e.clientX - r.left;
       const my = e.clientY - r.top;
@@ -469,6 +498,33 @@ export function Canvas({ readOnly = false }: { readOnly?: boolean }) {
       }
     };
     const onUp = (e: MouseEvent) => {
+      // Click (≤5px travel) vs drag: clicks drive the skill-tree focus dive.
+      const isClick =
+        (drag.kind === "node" || drag.kind === "pan") &&
+        Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < 5;
+
+      if (isClick && drag.kind === "node" && tool === "select") {
+        const fs = useFocusStore.getState();
+        const node = useNodeStore.getState().nodes.find((n) => n.id === drag.id);
+        if (node) {
+          // One click: dive focus to the node AND open its document panel.
+          const cs = useCanvasStore.getState();
+          if (fs.focusedId === null) fs.enter(drag.id, { ...cs.camera });
+          else if (fs.focusedId !== drag.id) fs.hop(drag.id);
+          animateCameraTo(cameraForNode(node, cs.viewport));
+          setOpenDocId(drag.id);
+        }
+      } else if (isClick && drag.kind === "pan") {
+        // Click on empty canvas exits focus mode, closes the panel, restores the camera.
+        const fs = useFocusStore.getState();
+        setOpenDocId(null);
+        if (fs.focusedId) {
+          const back = fs.returnCamera;
+          fs.exit();
+          if (back) animateCameraTo(back);
+        }
+      }
+
       if (drag.kind === "spawn") {
         const r = canvasRef.current!.getBoundingClientRect();
         if (
@@ -514,6 +570,8 @@ export function Canvas({ readOnly = false }: { readOnly?: boolean }) {
     setHoverConnectTarget,
     setTool,
     scale,
+    tool,
+    setOpenDocId,
   ]);
 
   const nodeMap = useMemo(
@@ -531,7 +589,8 @@ export function Canvas({ readOnly = false }: { readOnly?: boolean }) {
           : bgMode === "collage"
             ? `${gridSize}px ${gridSize}px, ${gridSize}px ${gridSize}px, ${480 * camera.zoom}px ${480 * camera.zoom}px`
             : undefined,
-    backgroundPosition: `${camera.x}px ${camera.y}px`,
+    // Neural mode's vignette is viewport-fixed; panning must not shift it.
+    backgroundPosition: bgMode === "neural" ? undefined : `${camera.x}px ${camera.y}px`,
   };
 
   const stageStyle: CSSProperties = {
@@ -554,6 +613,7 @@ export function Canvas({ readOnly = false }: { readOnly?: boolean }) {
         drag?.kind === "pan" && "is-panning",
         (tool === "connect" || drag?.kind === "connect") && "is-connect",
         tool === "delete" && "is-delete",
+        focusedId && "has-focus",
       )}
       onMouseDown={onCanvasDown}
       onContextMenu={onCanvasContextMenu}
@@ -575,6 +635,7 @@ export function Canvas({ readOnly = false }: { readOnly?: boolean }) {
               style={connectionStyle}
               speed={connectionSpeed}
               isSelected={selectedEdgeId === edge.id}
+              dimmed={!!focusedId && edge.from !== focusedId && edge.to !== focusedId}
               onClick={(e) => {
                 e.stopPropagation();
                 if (readOnly) return;
@@ -617,6 +678,15 @@ export function Canvas({ readOnly = false }: { readOnly?: boolean }) {
             isDragging={drag?.kind === "node" && drag.id === n.id}
             floating={n.floating ?? nodeFloating}
             pulsing={n.pulsing ?? nodePulsing}
+            focusState={
+              !focusedId
+                ? null
+                : n.id === focusedId
+                  ? "focus"
+                  : neighborIds.has(n.id)
+                    ? "neighbor"
+                    : "dim"
+            }
             onPointerDown={(e) => onNodeDown(e, n.id)}
             onDoubleClick={(e) => onNodeDouble(e, n.id)}
             onContextMenu={(e) => onNodeContextMenu(e, n.id)}
@@ -624,8 +694,22 @@ export function Canvas({ readOnly = false }: { readOnly?: boolean }) {
             onResizeDown={(e) => onNodeResizeDown(e, n.id)}
           />
         ))}
+        {focusedNode && !readOnly && (
+          <FocusRing
+            node={focusedNode}
+            onEdit={() => setOpenDocId(focusedNode.id)}
+            onConnect={() => setTool("connect")}
+            onDuplicate={() => duplicateNode(focusedNode.id)}
+            onDelete={() => {
+              removeNode(focusedNode.id);
+              removeEdgesForNode(focusedNode.id);
+              if (openDocId === focusedNode.id) setOpenDocId(null);
+            }}
+          />
+        )}
       </div>
 
+      <FocusTrail />
       {nodes.length === 0 && !readOnly && <EmptyState onCreate={onCreateFirst} />}
     </div>
   );

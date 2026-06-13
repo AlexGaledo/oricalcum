@@ -14,6 +14,8 @@ interface NodeCardProps {
   isDragging: boolean;
   floating: boolean;
   pulsing: boolean;
+  /** Skill-tree focus mode: this node's role, or null when focus is inactive. */
+  focusState: "focus" | "neighbor" | "dim" | null;
   onPointerDown: (e: MouseEvent) => void;
   onDoubleClick: (e: MouseEvent) => void;
   onContextMenu: (e: MouseEvent) => void;
@@ -24,7 +26,7 @@ interface NodeCardProps {
 const PORT_SIDES: PortSide[] = ["top", "right", "bottom", "left"];
 
 export function NodeCard({
-  node, isSelected, isConnectSource, isDragging, floating, pulsing,
+  node, isSelected, isConnectSource, isDragging, floating, pulsing, focusState,
   onPointerDown, onDoubleClick, onContextMenu, onPortDown, onResizeDown,
 }: NodeCardProps) {
   const hasShapeBg =
@@ -36,6 +38,8 @@ export function NodeCard({
   const nodeStyle = useMemo(() => {
     const s: Record<string, string | number> = {
       left: node.x, top: node.y, width: node.w, height: node.h,
+      // Gives the hover tilt real vanishing-point depth (framer-motion key).
+      transformPerspective: 700,
     };
     if (hasShapeBg) {
       s.borderColor = "transparent";
@@ -63,6 +67,11 @@ export function NodeCard({
         y: shouldFloat ? [0, -6, 0, 4, 0] : 0,
         rotate: shouldFloat ? [0, 1, 0, -1, 0] : 0,
       }}
+      whileHover={
+        isDragging
+          ? undefined
+          : { rotateX: 2.2, rotateY: -2.4, transition: { duration: 0.18 } }
+      }
       transition={{
         opacity: { duration: 0.16, ease: [0.3, 0.7, 0.4, 1] },
         scale: shouldPulse ? { duration: 2.4, ease: "easeInOut", repeat: Infinity, repeatType: "mirror" } : { duration: 0.16 },
@@ -74,6 +83,9 @@ export function NodeCard({
         isSelected && "is-selected",
         isConnectSource && "is-connect-source",
         isDragging && "is-dragging",
+        focusState === "focus" && "is-focus",
+        focusState === "neighbor" && "is-neighbor",
+        focusState === "dim" && "is-dim",
       )}
       data-shape={node.shape}
       data-id={node.id}

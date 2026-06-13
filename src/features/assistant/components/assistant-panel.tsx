@@ -4,8 +4,17 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useWorkspacesStore } from "@/features/workspaces/store/workspaces.store";
 import { useThemeStore } from "@/features/themes/store/theme.store";
+import { uploadMedia } from "@/data/api/endpoints/storage.api";
 import { useAssistantStore } from "../store/assistant.store";
 import { ChatMarkdown } from "./chat-markdown";
+
+function AttachIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="assistant-attach-icon">
+      <path d="M21.4 11.6 l-8.5 8.5 a5 5 0 0 1 -7 -7 l8.5 -8.5 a3 3 0 0 1 4.2 4.2 l-8.5 8.5 a1 1 0 0 1 -1.4 -1.4 l8.5 -8.5" />
+    </svg>
+  );
+}
 
 function SparkIcon() {
   return (
@@ -47,8 +56,10 @@ export function AssistantPanel() {
   const clear = useAssistantStore((s) => s.clear);
 
   const [draft, setDraft] = useState("");
+  const [uploading, setUploading] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   // autoscroll to newest message / token
   useEffect(() => {
@@ -84,18 +95,25 @@ export function AssistantPanel() {
     el.style.height = Math.min(el.scrollHeight, 120) + "px";
   };
 
+  // Attach a file: upload to storage, drop a markdown link into the draft.
+  const onAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !activeId || uploading) return;
+    setUploading(true);
+    try {
+      const url = await uploadMedia(activeId, file);
+      setDraft((d) => `${d ? d + " " : ""}[${file.name}](${url})`);
+      inputRef.current?.focus();
+    } catch {
+      // ignore upload failure
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <>
-      <button
-        type="button"
-        className={`assistant-fab ${open ? "assistant-fab-active" : ""}`}
-        onClick={toggle}
-        title="Workspace assistant"
-        aria-label="Toggle workspace assistant"
-      >
-        <SparkIcon />
-      </button>
-
       <AnimatePresence>
         {open && (
           <motion.div
@@ -147,6 +165,22 @@ export function AssistantPanel() {
             </div>
 
             <div className="assistant-input-row">
+              <input
+                ref={fileRef}
+                type="file"
+                hidden
+                onChange={onAttach}
+              />
+              <button
+                type="button"
+                className="assistant-attach-btn"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading || streaming}
+                title={uploading ? "Uploading…" : "Attach file"}
+                aria-label="Attach file"
+              >
+                <AttachIcon />
+              </button>
               <textarea
                 ref={inputRef}
                 className="assistant-input"

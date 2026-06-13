@@ -29,7 +29,7 @@ export const FONT_PRESETS: { value: FontMode; label: string; cssVar: string }[] 
 export const TWEAK_DEFAULTS = {
   accent: "#10A37F",
   themeName: "Mono",
-  bgMode: "grid",
+  bgMode: "neural",
   fontMode: "mono",
   connectionsAnimated: true,
   connectionStyle: "flow",
@@ -47,7 +47,7 @@ export const TWEAK_DEFAULTS = {
 export type TweakState = {
   accent: string;
   themeName: string;
-  bgMode: "plain" | "grid" | "paper" | "collage";
+  bgMode: "neural" | "plain" | "grid" | "paper" | "collage";
   fontMode: FontMode;
   connectionsAnimated: boolean;
   connectionStyle: "flow" | "pulse" | "orbit";

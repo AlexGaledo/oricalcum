@@ -88,6 +88,9 @@ export function WorkspaceCard({ workspace, onClick, onDelete, onRename }: Props)
     <div className="ws-card" onClick={renaming ? undefined : onClick} onMouseEnter={handleHoverStart} onMouseLeave={handleHoverEnd}>
       <div className="ws-card-accent" style={{ background: workspace.accentColor }} />
       <div className="ws-card-body">
+        <span className="hud-tag ws-card-tag" aria-hidden="true">
+          WS&nbsp;//&nbsp;{workspace.id.replace(/[^a-z0-9]/gi, "").slice(-4).toUpperCase()}
+        </span>
         {renaming ? (
           <input
             ref={inputRef}

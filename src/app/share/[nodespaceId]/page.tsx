@@ -6,24 +6,28 @@ import { Canvas, Minimap } from "@/features/canvas";
 import { LoadingScreen } from "@/shared/components/ui/loading-screen";
 import { useNodeStore } from "@/features/nodes/store/node.store";
 import { useEdgeStore } from "@/features/edges/store/edge.store";
-import { fetchPublicProject, fetchPublicNodes, fetchPublicEdges } from "@/data/api/endpoints/projects.api";
+import {
+  fetchPublicNodespace,
+  fetchPublicNodespaceNodes,
+  fetchPublicNodespaceEdges,
+} from "@/data/api/endpoints/nodespaces.api";
 import type { OriNode, OriEdge, ShapeId, PortSide } from "@/shared/types";
 
 export default function SharePage() {
-  const { projectId } = useParams<{ projectId: string }>();
-  const [projectName, setProjectName] = useState<string | null>(null);
+  const { nodespaceId } = useParams<{ nodespaceId: string }>();
+  const [graphName, setGraphName] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    if (!projectId) return;
+    if (!nodespaceId) return;
 
     Promise.all([
-      fetchPublicProject(projectId),
-      fetchPublicNodes(projectId),
-      fetchPublicEdges(projectId),
+      fetchPublicNodespace(nodespaceId),
+      fetchPublicNodespaceNodes(nodespaceId),
+      fetchPublicNodespaceEdges(nodespaceId),
     ])
-      .then(([project, rawNodes, rawEdges]) => {
-        setProjectName((project.name as string) ?? "Shared workspace");
+      .then(([meta, rawNodes, rawEdges]) => {
+        setGraphName((meta.name as string) ?? "Shared graph");
 
         const nodes: OriNode[] = (rawNodes as Record<string, unknown>[]).map((n) => ({
           id: n.id as string,
@@ -59,13 +63,13 @@ export default function SharePage() {
       useNodeStore.getState().clear();
       useEdgeStore.getState().clear();
     };
-  }, [projectId]);
+  }, [nodespaceId]);
 
   if (notFound) {
     return (
       <div className="share-unavailable">
-        <p>// workspace.not_found</p>
-        <p>This workspace is not publicly available.</p>
+        <p>// nodespace.not_found</p>
+        <p>This graph is not publicly available.</p>
       </div>
     );
   }
@@ -81,9 +85,9 @@ export default function SharePage() {
           <span className="reticle br" />
         </div>
 
-        {projectName && (
+        {graphName && (
           <div className="share-banner">
-            <span className="share-banner-label">// {projectName}</span>
+            <span className="share-banner-label">// {graphName}</span>
             <span className="share-banner-mode">read only</span>
           </div>
         )}
