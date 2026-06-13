@@ -957,6 +957,9 @@ button { font-family: inherit; }
   letter-spacing: 0.01em;
   outline: none;
 }
+.docpanel-title:read-only {
+  cursor: default;
+}
 .docpanel-meta {
   display: flex; flex-direction: column; gap: 4px;
   padding: 8px 0;
@@ -1105,13 +1108,33 @@ button { font-family: inherit; }
 .docpanel-editor .ProseMirror pre {
   font-family: var(--font-mono);
   font-size: 0.85em;
+  line-height: 1.55;
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 10px 12px;
   overflow-x: auto;
+  white-space: pre;
+  position: relative;
 }
-.docpanel-editor .ProseMirror pre code { background: transparent; padding: 0; }
+.docpanel-editor .ProseMirror pre code {
+  background: transparent;
+  padding: 0;
+  font-size: inherit;
+  white-space: pre;
+}
+.docpanel-editor .ProseMirror pre code[class^="language-"]::before {
+  content: attr(class);
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  font-size: 0.7em;
+  line-height: 1;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+}
 .docpanel-editor .ProseMirror a {
   color: var(--accent);
   text-decoration: underline;

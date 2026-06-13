@@ -6,6 +6,7 @@ import { Canvas, Minimap } from "@/features/canvas";
 import { LoadingScreen } from "@/shared/components/ui/loading-screen";
 import { useNodeStore } from "@/features/nodes/store/node.store";
 import { useEdgeStore } from "@/features/edges/store/edge.store";
+import { EditorPanel } from "@/features/documents";
 import {
   fetchPublicNodespace,
   fetchPublicNodespaceNodes,
@@ -94,6 +95,7 @@ export default function SharePage() {
 
         <Canvas readOnly />
         <Minimap />
+        <EditorPanel readOnly />
       </div>
     </>
   );

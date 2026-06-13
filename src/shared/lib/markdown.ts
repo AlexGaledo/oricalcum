@@ -16,6 +16,45 @@ export function renderMarkdown(text: string): string {
   return marked.parse(text, { async: false }) as string;
 }
 
+/**
+ * Detect the programming language of a raw text fragment.
+ * Returns e.g. "json" when the text is valid JSON, or null if it is not code.
+ */
+export function detectCodeLanguage(text: string): string | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  if (
+    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+    (trimmed.startsWith("[") && trimmed.endsWith("]"))
+  ) {
+    try {
+      JSON.parse(trimmed);
+      return "json";
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/** Pretty-print JSON when possible; otherwise return the original text. */
+export function tryPrettyPrintJson(text: string): string {
+  const trimmed = text.trim();
+  try {
+    return JSON.stringify(JSON.parse(trimmed), null, 2);
+  } catch {
+    return text;
+  }
+}
+
+/**
+ * Escape HTML for code-block content. Only escapes characters that would be
+ * parsed as markup (`<`, `>`, `&`) so quotes stay readable as literal `"`.
+ */
+export function escapeCodeHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 /** Escape raw HTML so injected tags can't execute, then render markdown. */
 function escapeHtml(text: string): string {
   return text

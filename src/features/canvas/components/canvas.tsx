@@ -262,7 +262,12 @@ export function Canvas({ readOnly = false }: { readOnly?: boolean }) {
 
   const onNodeDown = (e: ReactMouseEvent, nodeId: string) => {
     e.stopPropagation();
-    if (readOnly) return;
+    if (readOnly) {
+      setSelected(nodeId);
+      setSelectedEdge(null);
+      setOpenDocId(nodeId);
+      return;
+    }
     if (tool === "delete") {
       removeNode(nodeId);
       removeEdgesForNode(nodeId);

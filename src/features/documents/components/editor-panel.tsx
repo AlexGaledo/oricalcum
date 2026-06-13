@@ -27,12 +27,13 @@ interface DocBodyProps {
   setOpenDocId: (id: string | null) => void;
   setDocExpanded: (b: boolean) => void;
   expanded: boolean;
-  projectId: string;
+  projectId?: string;
+  readOnly?: boolean;
 }
 
 function DocBody({
   display, openDocId, updateNode, handleDelete,
-  setOpenDocId, setDocExpanded, expanded, projectId,
+  setOpenDocId, setDocExpanded, expanded, projectId, readOnly,
 }: DocBodyProps) {
   const [editor, setEditor] = useState<Editor | null>(null);
   const [charCount, setCharCount] = useState(0);
@@ -42,11 +43,11 @@ function DocBody({
   const handleEditorReady = useCallback((e: Editor) => setEditor(e), []);
   const handleBodyChange = useCallback(
     (html: string) => {
-      if (!openDocId) return;
+      if (readOnly || !openDocId) return;
       updateNode(openDocId, { body: html });
       setCharCount(editor?.getText().length ?? 0);
     },
-    [openDocId, updateNode, editor],
+    [readOnly, openDocId, updateNode, editor],
   );
 
   useEffect(() => {
@@ -69,14 +70,16 @@ function DocBody({
           >
             <ExpandIcon />
           </button>
-          <button
-            type="button"
-            className="docpanel-btn"
-            title="Delete"
-            onClick={handleDelete}
-          >
-            <TrashIcon />
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              className="docpanel-btn"
+              title="Delete"
+              onClick={handleDelete}
+            >
+              <TrashIcon />
+            </button>
+          )}
           <button
             type="button"
             className="docpanel-btn"
@@ -93,8 +96,9 @@ function DocBody({
           rows={2}
           value={display.title || ""}
           placeholder="untitled"
+          readOnly={readOnly}
           onChange={(e) =>
-            openDocId && updateNode(openDocId, { title: e.target.value })
+            !readOnly && openDocId && updateNode(openDocId, { title: e.target.value })
           }
         />
         <div className="docpanel-meta">
@@ -111,111 +115,117 @@ function DocBody({
             <span className="v">{fmtTime(display.updatedAt)}</span>
           </span>
         </div>
-        <div className="docpanel-tweak-toggle">
-          <button
-            type="button"
-            className="docpanel-tweak-trigger"
-            onClick={() => setStyleOpen((v) => !v)}
-          >
-            <span>Node Style</span>
-            <span className={`docpanel-chevron ${styleOpen ? "is-open" : ""}`}>
-              ▸
-            </span>
-          </button>
-          {styleOpen && (
-            <div className="docpanel-tweak-body">
-              <div className="docpanel-tweak-row">
-                <span className="docpanel-tweak-label">Shape</span>
-                <div className="docpanel-shape-picker">
-                  {SHAPES.map((s) => (
+        {!readOnly && (
+          <div className="docpanel-tweak-toggle">
+            <button
+              type="button"
+              className="docpanel-tweak-trigger"
+              onClick={() => setStyleOpen((v) => !v)}
+            >
+              <span>Node Style</span>
+              <span className={`docpanel-chevron ${styleOpen ? "is-open" : ""}`}>
+                ▸
+              </span>
+            </button>
+            {styleOpen && (
+              <div className="docpanel-tweak-body">
+                <div className="docpanel-tweak-row">
+                  <span className="docpanel-tweak-label">Shape</span>
+                  <div className="docpanel-shape-picker">
+                    {SHAPES.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        className={`docpanel-shape-btn ${display.shape === s.id ? "is-active" : ""}`}
+                        onClick={() => openDocId && updateNode(openDocId, { shape: s.id })}
+                        title={s.label}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="docpanel-tweak-row">
+                  <span className="docpanel-tweak-label">Color</span>
+                  <div className="docpanel-swatches">
+                    <input
+                      type="color"
+                      className="docpanel-color-input"
+                      value={display.color ?? "#10A37F"}
+                      onChange={(e) =>
+                        openDocId && updateNode(openDocId, { color: e.target.value })
+                      }
+                    />
+                    {ACCENT_SWATCHES.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        className="docpanel-swatch-btn"
+                        style={{ background: c }}
+                        onClick={() => openDocId && updateNode(openDocId, { color: c })}
+                        title={c}
+                      >
+                        {c.toLowerCase() === (display.color ?? "").toLowerCase() && (
+                          <svg viewBox="0 0 14 14" aria-hidden>
+                            <path d="M3 7.2 5.8 10 11 4.2" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
                     <button
-                      key={s.id}
                       type="button"
-                      className={`docpanel-shape-btn ${display.shape === s.id ? "is-active" : ""}`}
-                      onClick={() => openDocId && updateNode(openDocId, { shape: s.id })}
-                      title={s.label}
+                      className="docpanel-swatch-btn docpanel-swatch-reset"
+                      onClick={() => openDocId && updateNode(openDocId, { color: undefined })}
+                      title="Reset to theme accent"
                     >
-                      {s.label}
+                      ↺
                     </button>
-                  ))}
+                  </div>
+                </div>
+                <div className="docpanel-tweak-row">
+                  <span className="docpanel-tweak-label">Opacity</span>
+                  <div className="docpanel-tweak-slider-wrap">
+                    <input
+                      type="range"
+                      className="docpanel-tweak-slider"
+                      min={10}
+                      max={100}
+                      step={5}
+                      value={display.opacity ?? 100}
+                      onChange={(e) =>
+                        openDocId && updateNode(openDocId, { opacity: Number(e.target.value) })
+                      }
+                    />
+                    <span className="docpanel-tweak-val">{display.opacity ?? 100}%</span>
+                  </div>
                 </div>
               </div>
-              <div className="docpanel-tweak-row">
-                <span className="docpanel-tweak-label">Color</span>
-                <div className="docpanel-swatches">
-                  <input
-                    type="color"
-                    className="docpanel-color-input"
-                    value={display.color ?? "#10A37F"}
-                    onChange={(e) =>
-                      openDocId && updateNode(openDocId, { color: e.target.value })
-                    }
-                  />
-                  {ACCENT_SWATCHES.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      className="docpanel-swatch-btn"
-                      style={{ background: c }}
-                      onClick={() => openDocId && updateNode(openDocId, { color: c })}
-                      title={c}
-                    >
-                      {c.toLowerCase() === (display.color ?? "").toLowerCase() && (
-                        <svg viewBox="0 0 14 14" aria-hidden>
-                          <path d="M3 7.2 5.8 10 11 4.2" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      )}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    className="docpanel-swatch-btn docpanel-swatch-reset"
-                    onClick={() => openDocId && updateNode(openDocId, { color: undefined })}
-                    title="Reset to theme accent"
-                  >
-                    ↺
-                  </button>
-                </div>
-              </div>
-              <div className="docpanel-tweak-row">
-                <span className="docpanel-tweak-label">Opacity</span>
-                <div className="docpanel-tweak-slider-wrap">
-                  <input
-                    type="range"
-                    className="docpanel-tweak-slider"
-                    min={10}
-                    max={100}
-                    step={5}
-                    value={display.opacity ?? 100}
-                    onChange={(e) =>
-                      openDocId && updateNode(openDocId, { opacity: Number(e.target.value) })
-                    }
-                  />
-                  <span className="docpanel-tweak-val">{display.opacity ?? 100}%</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-        <EditorToolbar editor={editor} projectId={projectId} />
+            )}
+          </div>
+        )}
+        {!readOnly && <EditorToolbar editor={editor} projectId={projectId} />}
         <RichEditor
           key={display.id}
           value={display.body || ""}
           onChange={handleBodyChange}
           onEditorReady={handleEditorReady}
+          readOnly={readOnly}
         />
-        {projectId && openDocId && <NodeAttachments projectId={projectId} nodeId={openDocId} />}
+        {!readOnly && projectId && openDocId && <NodeAttachments projectId={projectId} nodeId={openDocId} />}
       </div>
       <div className="docpanel-foot">
         <span className="doc-shape-tag">{display.shape}</span>
-        <span style={{ marginLeft: "auto" }}>{charCount} chars · autosaved</span>
+        <span style={{ marginLeft: "auto" }}>
+          {charCount} chars{readOnly ? " · read only" : " · autosaved"}
+        </span>
       </div>
     </>
   );
 }
 
-export function EditorPanel() {
-  const { id: projectId } = useParams<{ id: string }>();
+export function EditorPanel({ readOnly = false }: { readOnly?: boolean } = {}) {
+  const { id } = useParams<{ id?: string }>();
+  const projectId = id;
   const openDocId = useCanvasStore((s) => s.openDocId);
   const setOpenDocId = useCanvasStore((s) => s.setOpenDocId);
   const docExpanded = useCanvasStore((s) => s.docExpanded);
@@ -233,7 +243,7 @@ export function EditorPanel() {
   const open = !!node;
 
   const handleDelete = () => {
-    if (!openDocId) return;
+    if (readOnly || !openDocId) return;
     removeNode(openDocId);
     removeEdgesForNode(openDocId);
     setOpenDocId(null);
@@ -248,6 +258,7 @@ export function EditorPanel() {
         setOpenDocId,
         setDocExpanded,
         projectId,
+        readOnly,
       }
     : null;
 
