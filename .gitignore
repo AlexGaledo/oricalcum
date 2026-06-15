@@ -13,3 +13,4 @@ design_modules
 /e2e/.auth/
 .claude
 .vercel
+node_modules
