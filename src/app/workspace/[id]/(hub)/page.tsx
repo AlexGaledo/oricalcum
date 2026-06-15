@@ -8,6 +8,7 @@ import { Skeleton } from "@/shared/components/ui/skeleton";
 
 const MODULES = [
   { key: "graphs", icon: GridIcon, name: "Graphs", desc: "Open the canvas and shape your nodes." },
+  { key: "Workflows", icon: GridIcon, name: "Workflows", desc: "Automate processes with no-code workflows." },
   { key: "storage", icon: FolderIcon, name: "Storage", desc: "Files & folders for this workspace, backed by S3." },
   { key: "people", icon: PeopleIcon, name: "People", desc: "Manage collaborators on this workspace." },
   { key: "settings", icon: GearIcon, name: "Settings", desc: "Secrets, environment variables & metadata." },
