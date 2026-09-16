@@ -35,6 +35,7 @@ const caveat = Caveat({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://oricalcum.vercel.app"),
   title: "Oricalcum",
   description: "Visual systems canvas — nodes, edges, themes.",
   icons: { icon: "/oricalcum-logo.svg", apple: "/oricalcum-logo.svg" },

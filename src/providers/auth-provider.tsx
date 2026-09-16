@@ -13,8 +13,9 @@ function clearUserCaches() {
   useFilesStore.getState().reset();
 }
 
+// "/" is the public landing page; its CTA reads the session itself.
 const isPublicRoute = (path: string) =>
-  path === "/login" || path === "/auth/callback" || path.startsWith("/share/");
+  path === "/" || path === "/login" || path === "/auth/callback" || path.startsWith("/share/");
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
