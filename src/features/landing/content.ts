@@ -116,10 +116,10 @@ export const MCP_TOOLS = [
 
 export const SCREENS = [
   {
-    src: "/landing/nodespace.png",
+    src: "/landing/canvas-graph.png",
     label: "nodespace",
-    caption: "One canvas. Double-click to add a node, drag a port to connect it, prompt the oracle from the bar below.",
-    alt: "Oricalcum nodespace canvas with a glowing node inside the neural orb and the AI prompt bar",
+    caption: "One canvas, eleven connected nodes: the Getting Started tour every new workspace opens with.",
+    alt: "Oricalcum canvas showing the Getting Started graph: a hexagon start node wired to three rows of cards",
   },
   {
     src: "/landing/workspace-hub.png",
