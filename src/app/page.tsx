@@ -9,7 +9,7 @@ import "./landing.css";
  * now has to explain the product before asking for an account.
  */
 export const metadata: Metadata = {
-  title: "Oricalcum — An Oracle for work, teams, and hobbies",
+  title: "Oricalcum | An Oracle for work, teams, and hobbies",
   description:
     "A canvas-first AI workspace: nodes, edges and rich documents on one canvas, with an assistant that builds the map with you and MCP tools under the hood.",
   openGraph: {
@@ -18,13 +18,13 @@ export const metadata: Metadata = {
     url: "/",
     siteName: "Oricalcum",
     type: "website",
-    images: [{ url: "/landing/nodespace.png", width: 1280, height: 720, alt: "Oricalcum nodespace canvas" }],
+    images: [{ url: "/landing/canvas-graph.png", width: 1280, height: 720, alt: "Oricalcum nodespace canvas" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Oricalcum",
     description: "An Oracle for work, teams, and hobbies. A canvas-first AI workspace.",
-    images: ["/landing/nodespace.png"],
+    images: ["/landing/canvas-graph.png"],
   },
 };
 
